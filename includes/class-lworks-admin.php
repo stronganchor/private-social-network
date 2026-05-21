@@ -56,6 +56,15 @@ class LWorks_Admin {
 
 		add_submenu_page(
 			'lworks',
+			__( 'Audit Log', 'littleworks-of-mercy' ),
+			__( 'Audit Log', 'littleworks-of-mercy' ),
+			LWORKS_CAP_MANAGE_ALL,
+			'lworks-audit',
+			array( __CLASS__, 'render_audit_page' )
+		);
+
+		add_submenu_page(
+			'lworks',
 			__( 'Settings', 'littleworks-of-mercy' ),
 			__( 'Settings', 'littleworks-of-mercy' ),
 			LWORKS_CAP_MANAGE_ALL,
@@ -113,6 +122,7 @@ class LWorks_Admin {
 		self::render_shortcode_row( '[lworks_login]', __( 'Login form with remember-me enabled by default', 'littleworks-of-mercy' ) );
 		self::render_shortcode_row( '[lworks_dashboard]', __( 'Private member dashboard and request feed', 'littleworks-of-mercy' ) );
 		self::render_shortcode_row( '[lworks_coordinator]', __( 'Frontend coordinator approval screen', 'littleworks-of-mercy' ) );
+		self::render_shortcode_row( '[lworks_profile]', __( 'Standalone member notification settings', 'littleworks-of-mercy' ) );
 		echo '</tbody></table>';
 
 		echo '<h2>' . esc_html__( 'Current state', 'littleworks-of-mercy' ) . '</h2>';
@@ -135,7 +145,7 @@ class LWorks_Admin {
 		$editing_group = null;
 
 		if ( isset( $_GET['group_id'] ) ) {
-			$editing_group = LWorks_Repository::get_group( absint( $_GET['group_id'] ) );
+			$editing_group = LWorks_Repository::get_group( absint( wp_unslash( $_GET['group_id'] ) ) );
 		}
 
 		echo '<div class="wrap">';
@@ -150,11 +160,13 @@ class LWorks_Admin {
 			echo '<p>' . esc_html__( 'No groups have been created yet.', 'littleworks-of-mercy' ) . '</p>';
 		} else {
 			echo '<table class="widefat striped">';
-			echo '<thead><tr><th>' . esc_html__( 'Name', 'littleworks-of-mercy' ) . '</th><th>' . esc_html__( 'Invite code', 'littleworks-of-mercy' ) . '</th><th>' . esc_html__( 'Status', 'littleworks-of-mercy' ) . '</th><th>' . esc_html__( 'Actions', 'littleworks-of-mercy' ) . '</th></tr></thead><tbody>';
+			echo '<thead><tr><th>' . esc_html__( 'Name', 'littleworks-of-mercy' ) . '</th><th>' . esc_html__( 'Invite code', 'littleworks-of-mercy' ) . '</th><th>' . esc_html__( 'Invite link', 'littleworks-of-mercy' ) . '</th><th>' . esc_html__( 'Status', 'littleworks-of-mercy' ) . '</th><th>' . esc_html__( 'Actions', 'littleworks-of-mercy' ) . '</th></tr></thead><tbody>';
 			foreach ( $groups as $group ) {
+				$invite_url = self::group_invite_url( $group );
 				echo '<tr>';
 				echo '<td>' . esc_html( $group->name ) . '</td>';
 				echo '<td><code>' . esc_html( $group->invite_code ) . '</code></td>';
+				echo '<td>' . ( $invite_url ? '<code>' . esc_html( $invite_url ) . '</code>' : esc_html__( 'Set a registration page in Settings.', 'littleworks-of-mercy' ) ) . '</td>';
 				echo '<td>' . esc_html( (int) $group->active ? __( 'Active', 'littleworks-of-mercy' ) : __( 'Inactive', 'littleworks-of-mercy' ) ) . '</td>';
 				echo '<td><a href="' . esc_url( admin_url( 'admin.php?page=lworks-groups&group_id=' . absint( $group->id ) ) ) . '">' . esc_html__( 'Edit', 'littleworks-of-mercy' ) . '</a></td>';
 				echo '</tr>';
@@ -211,6 +223,41 @@ class LWorks_Admin {
 	}
 
 	/**
+	 * Render recent audit events.
+	 *
+	 * @return void
+	 */
+	public static function render_audit_page() {
+		$entries = LWorks_Repository::get_audit_entries( 200 );
+
+		echo '<div class="wrap">';
+		echo '<h1>' . esc_html__( 'Audit Log', 'littleworks-of-mercy' ) . '</h1>';
+
+		if ( empty( $entries ) ) {
+			echo '<p>' . esc_html__( 'No audit entries have been recorded yet.', 'littleworks-of-mercy' ) . '</p>';
+			echo '</div>';
+			return;
+		}
+
+		echo '<table class="widefat striped">';
+		echo '<thead><tr><th>' . esc_html__( 'Time', 'littleworks-of-mercy' ) . '</th><th>' . esc_html__( 'Actor', 'littleworks-of-mercy' ) . '</th><th>' . esc_html__( 'Event', 'littleworks-of-mercy' ) . '</th><th>' . esc_html__( 'Object', 'littleworks-of-mercy' ) . '</th><th>' . esc_html__( 'Message', 'littleworks-of-mercy' ) . '</th></tr></thead><tbody>';
+
+		foreach ( $entries as $entry ) {
+			$actor = $entry->actor_user_id ? get_user_by( 'id', $entry->actor_user_id ) : null;
+			echo '<tr>';
+			echo '<td>' . esc_html( get_date_from_gmt( $entry->created_at, get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) ) ) . '</td>';
+			echo '<td>' . esc_html( $actor ? $actor->display_name : __( 'System', 'littleworks-of-mercy' ) ) . '</td>';
+			echo '<td><code>' . esc_html( $entry->event ) . '</code></td>';
+			echo '<td>' . esc_html( $entry->object_type . '#' . $entry->object_id ) . '</td>';
+			echo '<td>' . esc_html( $entry->message ) . '</td>';
+			echo '</tr>';
+		}
+
+		echo '</tbody></table>';
+		echo '</div>';
+	}
+
+	/**
 	 * Render settings page.
 	 *
 	 * @return void
@@ -247,6 +294,22 @@ class LWorks_Admin {
 				<tr>
 					<th scope="row"><label for="notification_email"><?php esc_html_e( 'Fallback notification email', 'littleworks-of-mercy' ); ?></label></th>
 					<td><input type="email" class="regular-text" id="notification_email" name="notification_email" value="<?php echo esc_attr( $settings['notification_email'] ); ?>"></td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="registration_page_id"><?php esc_html_e( 'Registration page', 'littleworks-of-mercy' ); ?></label></th>
+					<td>
+						<?php
+						wp_dropdown_pages(
+							array(
+								'name'              => 'registration_page_id',
+								'id'                => 'registration_page_id',
+								'show_option_none'  => __( 'Select a page', 'littleworks-of-mercy' ),
+								'option_none_value' => '0',
+								'selected'          => absint( $settings['registration_page_id'] ),
+							)
+						);
+						?>
+					</td>
 				</tr>
 				<tr>
 					<th scope="row"><label for="dashboard_page_id"><?php esc_html_e( 'Member dashboard page', 'littleworks-of-mercy' ); ?></label></th>
@@ -384,6 +447,7 @@ class LWorks_Admin {
 				'member_remember_days' => isset( $_POST['member_remember_days'] ) ? min( 3650, max( 1, absint( $_POST['member_remember_days'] ) ) ) : 180,
 				'staff_remember_days'  => isset( $_POST['staff_remember_days'] ) ? min( 3650, max( 1, absint( $_POST['staff_remember_days'] ) ) ) : 30,
 				'notification_email'   => isset( $_POST['notification_email'] ) ? sanitize_email( wp_unslash( $_POST['notification_email'] ) ) : get_option( 'admin_email' ),
+				'registration_page_id' => isset( $_POST['registration_page_id'] ) ? absint( $_POST['registration_page_id'] ) : 0,
 				'dashboard_page_id'    => isset( $_POST['dashboard_page_id'] ) ? absint( $_POST['dashboard_page_id'] ) : 0,
 				'coordinator_page_id'  => isset( $_POST['coordinator_page_id'] ) ? absint( $_POST['coordinator_page_id'] ) : 0,
 			)
@@ -495,6 +559,28 @@ class LWorks_Admin {
 	 */
 	private static function render_shortcode_row( $shortcode, $description ) {
 		echo '<tr><td><code>' . esc_html( $shortcode ) . '</code></td><td>' . esc_html( $description ) . '</td></tr>';
+	}
+
+	/**
+	 * Build an invite URL for a group.
+	 *
+	 * @param object $group Group row.
+	 * @return string
+	 */
+	private static function group_invite_url( $group ) {
+		$settings             = LWorks_Repository::settings();
+		$registration_page_id = isset( $settings['registration_page_id'] ) ? absint( $settings['registration_page_id'] ) : 0;
+
+		if ( ! $registration_page_id || empty( $group->invite_code ) ) {
+			return '';
+		}
+
+		$url = get_permalink( $registration_page_id );
+		if ( ! $url ) {
+			return '';
+		}
+
+		return add_query_arg( 'invite', $group->invite_code, $url );
 	}
 
 	/**

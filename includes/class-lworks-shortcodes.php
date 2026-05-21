@@ -21,6 +21,7 @@ class LWorks_Shortcodes {
 		add_shortcode( 'lworks_dashboard', array( __CLASS__, 'dashboard_shortcode' ) );
 		add_shortcode( 'lworks_request_board', array( __CLASS__, 'dashboard_shortcode' ) );
 		add_shortcode( 'lworks_coordinator', array( __CLASS__, 'coordinator_shortcode' ) );
+		add_shortcode( 'lworks_profile', array( __CLASS__, 'profile_shortcode' ) );
 	}
 
 	/**
@@ -35,8 +36,10 @@ class LWorks_Shortcodes {
 			return self::notice( __( 'You are already logged in.', 'littleworks-of-mercy' ), 'info' );
 		}
 
-		$groups  = LWorks_Repository::get_groups( true );
-		$message = '';
+		$groups              = LWorks_Repository::get_groups( true );
+		$message             = '';
+		$prefill_invite_code = isset( $_GET['invite'] ) ? LWorks_Repository::sanitize_invite_code( wp_unslash( $_GET['invite'] ) ) : '';
+		$prefill_group       = $prefill_invite_code ? LWorks_Repository::get_group_by_invite_code( $prefill_invite_code ) : null;
 
 		if ( self::is_post_action( 'lworks_register' ) ) {
 			$message = self::handle_registration();
@@ -89,20 +92,26 @@ class LWorks_Shortcodes {
 				</label>
 			</div>
 
-			<label>
-				<span><?php esc_html_e( 'Parish or community', 'littleworks-of-mercy' ); ?></span>
-				<select name="group_id" required>
-					<option value=""><?php esc_html_e( 'Choose one', 'littleworks-of-mercy' ); ?></option>
-					<?php foreach ( $groups as $group ) : ?>
-						<option value="<?php echo esc_attr( $group->id ); ?>"><?php echo esc_html( $group->name ); ?></option>
-					<?php endforeach; ?>
-				</select>
-			</label>
+			<?php if ( $prefill_group ) : ?>
+				<input type="hidden" name="group_id" value="<?php echo esc_attr( $prefill_group->id ); ?>">
+				<input type="hidden" name="invite_code" value="<?php echo esc_attr( $prefill_invite_code ); ?>">
+				<p class="lworks-prefilled-group"><strong><?php esc_html_e( 'Parish or community:', 'littleworks-of-mercy' ); ?></strong> <?php echo esc_html( $prefill_group->name ); ?></p>
+			<?php else : ?>
+				<label>
+					<span><?php esc_html_e( 'Parish or community', 'littleworks-of-mercy' ); ?></span>
+					<select name="group_id" required>
+						<option value=""><?php esc_html_e( 'Choose one', 'littleworks-of-mercy' ); ?></option>
+						<?php foreach ( $groups as $group ) : ?>
+							<option value="<?php echo esc_attr( $group->id ); ?>"><?php echo esc_html( $group->name ); ?></option>
+						<?php endforeach; ?>
+					</select>
+				</label>
 
-			<label>
-				<span><?php esc_html_e( 'Invite code', 'littleworks-of-mercy' ); ?></span>
-				<input type="text" name="invite_code" inputmode="latin" autocomplete="off">
-			</label>
+				<label>
+					<span><?php esc_html_e( 'Invite code', 'littleworks-of-mercy' ); ?></span>
+					<input type="text" name="invite_code" inputmode="latin" autocomplete="off" value="<?php echo esc_attr( $prefill_invite_code ); ?>">
+				</label>
+			<?php endif; ?>
 
 			<label>
 				<span><?php esc_html_e( 'Connection to this community', 'littleworks-of-mercy' ); ?></span>
@@ -145,6 +154,36 @@ class LWorks_Shortcodes {
 	}
 
 	/**
+	 * Member profile and notification settings.
+	 *
+	 * @return string
+	 */
+	public static function profile_shortcode() {
+		LWorks_Plugin::use_frontend_assets();
+
+		if ( ! is_user_logged_in() ) {
+			return self::login_shortcode();
+		}
+
+		if ( ! current_user_can( LWORKS_CAP_VIEW ) ) {
+			return '<div class="lworks">' . self::notice( __( 'Your account does not have access to member settings.', 'littleworks-of-mercy' ), 'error' ) . '</div>';
+		}
+
+		$message = '';
+		if ( self::is_post_action( 'lworks_save_preferences' ) ) {
+			$message = self::handle_save_preferences();
+		}
+
+		ob_start();
+		echo '<div class="lworks lworks-profile">';
+		echo $message; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		self::render_preferences_panel();
+		echo '</div>';
+
+		return ob_get_clean();
+	}
+
+	/**
 	 * Member dashboard and request board.
 	 *
 	 * @return string
@@ -181,6 +220,7 @@ class LWorks_Shortcodes {
 
 		self::render_request_form( $memberships );
 		self::render_request_feed( $user_id );
+		self::render_preferences_panel();
 
 		echo '</div>';
 		return ob_get_clean();
@@ -212,35 +252,35 @@ class LWorks_Shortcodes {
 
 		if ( empty( $pending ) ) {
 			echo self::notice( __( 'There are no pending registrations for your groups.', 'littleworks-of-mercy' ), 'info' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		} else {
+			echo '<div class="lworks-list">';
+			foreach ( $pending as $membership ) {
+				$user = get_user_by( 'id', $membership->user_id );
+				if ( ! $user ) {
+					continue;
+				}
+
+				echo '<article class="lworks-card">';
+				echo '<h3>' . esc_html( $user->display_name ) . '</h3>';
+				echo '<p><strong>' . esc_html__( 'Group:', 'littleworks-of-mercy' ) . '</strong> ' . esc_html( $membership->group_name ) . '</p>';
+				echo '<p><strong>' . esc_html__( 'Email:', 'littleworks-of-mercy' ) . '</strong> <a href="mailto:' . esc_attr( $user->user_email ) . '">' . esc_html( $user->user_email ) . '</a></p>';
+				$phone = get_user_meta( $user->ID, 'lworks_phone', true );
+				if ( $phone ) {
+					echo '<p><strong>' . esc_html__( 'Phone:', 'littleworks-of-mercy' ) . '</strong> ' . esc_html( $phone ) . '</p>';
+				}
+				if ( $membership->notes ) {
+					echo '<p><strong>' . esc_html__( 'Connection:', 'littleworks-of-mercy' ) . '</strong> ' . esc_html( $membership->notes ) . '</p>';
+				}
+				echo '<div class="lworks-actions">';
+				self::render_membership_action_form( $membership->id, 'approve', __( 'Approve', 'littleworks-of-mercy' ) );
+				self::render_membership_action_form( $membership->id, 'reject', __( 'Reject', 'littleworks-of-mercy' ) );
+				echo '</div>';
+				echo '</article>';
+			}
 			echo '</div>';
-			return ob_get_clean();
 		}
 
-		echo '<div class="lworks-list">';
-		foreach ( $pending as $membership ) {
-			$user = get_user_by( 'id', $membership->user_id );
-			if ( ! $user ) {
-				continue;
-			}
-
-			echo '<article class="lworks-card">';
-			echo '<h3>' . esc_html( $user->display_name ) . '</h3>';
-			echo '<p><strong>' . esc_html__( 'Group:', 'littleworks-of-mercy' ) . '</strong> ' . esc_html( $membership->group_name ) . '</p>';
-			echo '<p><strong>' . esc_html__( 'Email:', 'littleworks-of-mercy' ) . '</strong> <a href="mailto:' . esc_attr( $user->user_email ) . '">' . esc_html( $user->user_email ) . '</a></p>';
-			$phone = get_user_meta( $user->ID, 'lworks_phone', true );
-			if ( $phone ) {
-				echo '<p><strong>' . esc_html__( 'Phone:', 'littleworks-of-mercy' ) . '</strong> ' . esc_html( $phone ) . '</p>';
-			}
-			if ( $membership->notes ) {
-				echo '<p><strong>' . esc_html__( 'Connection:', 'littleworks-of-mercy' ) . '</strong> ' . esc_html( $membership->notes ) . '</p>';
-			}
-			echo '<div class="lworks-actions">';
-			self::render_membership_action_form( $membership->id, 'approve', __( 'Approve', 'littleworks-of-mercy' ) );
-			self::render_membership_action_form( $membership->id, 'reject', __( 'Reject', 'littleworks-of-mercy' ) );
-			echo '</div>';
-			echo '</article>';
-		}
-		echo '</div>';
+		self::render_coordinator_roster();
 		echo '</div>';
 
 		return ob_get_clean();
@@ -341,6 +381,10 @@ class LWorks_Shortcodes {
 
 		if ( 'lworks_update_request_status' === $action ) {
 			return self::handle_update_request_status();
+		}
+
+		if ( 'lworks_save_preferences' === $action ) {
+			return self::handle_save_preferences();
 		}
 
 		return '';
@@ -465,6 +509,29 @@ class LWorks_Shortcodes {
 		LWorks_Repository::audit( $user_id, 'request', $request_id, 'request_status_updated', $status );
 
 		return self::notice( __( 'The request status was updated.', 'littleworks-of-mercy' ), 'success' );
+	}
+
+	/**
+	 * Save notification preferences.
+	 *
+	 * @return string
+	 */
+	private static function handle_save_preferences() {
+		if ( ! isset( $_POST['lworks_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['lworks_nonce'] ) ), 'lworks_save_preferences' ) ) {
+			return self::notice( __( 'The settings form expired. Please try again.', 'littleworks-of-mercy' ), 'error' );
+		}
+
+		LWorks_Repository::save_user_preferences(
+			get_current_user_id(),
+			array(
+				'email_new_requests' => isset( $_POST['email_new_requests'] ) ? 1 : 0,
+				'email_responses'    => isset( $_POST['email_responses'] ) ? 1 : 0,
+			)
+		);
+
+		LWorks_Repository::audit( get_current_user_id(), 'user', get_current_user_id(), 'preferences_updated', '' );
+
+		return self::notice( __( 'Your notification settings were saved.', 'littleworks-of-mercy' ), 'success' );
 	}
 
 	/**
@@ -694,6 +761,74 @@ class LWorks_Shortcodes {
 	}
 
 	/**
+	 * Render notification preferences.
+	 *
+	 * @return void
+	 */
+	private static function render_preferences_panel() {
+		$preferences = LWorks_Repository::get_user_preferences( get_current_user_id() );
+		?>
+		<section class="lworks-panel lworks-preferences">
+			<h2><?php esc_html_e( 'Notification settings', 'littleworks-of-mercy' ); ?></h2>
+			<form method="post" class="lworks-form">
+				<?php wp_nonce_field( 'lworks_save_preferences', 'lworks_nonce' ); ?>
+				<input type="hidden" name="lworks_action" value="lworks_save_preferences">
+				<label class="lworks-checkbox">
+					<input type="checkbox" name="email_new_requests" value="1" <?php checked( ! empty( $preferences['email_new_requests'] ) ); ?>>
+					<span><?php esc_html_e( 'Email me when a new request is posted in one of my groups.', 'littleworks-of-mercy' ); ?></span>
+				</label>
+				<label class="lworks-checkbox">
+					<input type="checkbox" name="email_responses" value="1" <?php checked( ! empty( $preferences['email_responses'] ) ); ?>>
+					<span><?php esc_html_e( 'Email me when someone responds to one of my requests.', 'littleworks-of-mercy' ); ?></span>
+				</label>
+				<button type="submit" class="lworks-button lworks-button-secondary"><?php esc_html_e( 'Save settings', 'littleworks-of-mercy' ); ?></button>
+			</form>
+		</section>
+		<?php
+	}
+
+	/**
+	 * Render a coordinator-visible roster for managed groups.
+	 *
+	 * @return void
+	 */
+	private static function render_coordinator_roster() {
+		$group_ids = LWorks_Repository::get_managed_group_ids( get_current_user_id() );
+		$members   = LWorks_Repository::get_members_for_groups( $group_ids, array( 'active', 'pending' ) );
+
+		echo '<section class="lworks-panel lworks-roster">';
+		echo '<h2>' . esc_html__( 'Group members', 'littleworks-of-mercy' ) . '</h2>';
+
+		if ( empty( $members ) ) {
+			echo self::notice( __( 'No members are assigned to your groups yet.', 'littleworks-of-mercy' ), 'info' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			echo '</section>';
+			return;
+		}
+
+		echo '<div class="lworks-table-wrap"><table class="lworks-table">';
+		echo '<thead><tr><th>' . esc_html__( 'Name', 'littleworks-of-mercy' ) . '</th><th>' . esc_html__( 'Group', 'littleworks-of-mercy' ) . '</th><th>' . esc_html__( 'Role', 'littleworks-of-mercy' ) . '</th><th>' . esc_html__( 'Status', 'littleworks-of-mercy' ) . '</th><th>' . esc_html__( 'Email', 'littleworks-of-mercy' ) . '</th><th>' . esc_html__( 'Phone', 'littleworks-of-mercy' ) . '</th></tr></thead><tbody>';
+
+		foreach ( $members as $membership ) {
+			$user = get_user_by( 'id', $membership->user_id );
+			if ( ! $user ) {
+				continue;
+			}
+
+			echo '<tr>';
+			echo '<td>' . esc_html( $user->display_name ) . '</td>';
+			echo '<td>' . esc_html( $membership->group_name ) . '</td>';
+			echo '<td>' . esc_html( ucfirst( $membership->member_role ) ) . '</td>';
+			echo '<td>' . esc_html( ucfirst( $membership->status ) ) . '</td>';
+			echo '<td><a href="mailto:' . esc_attr( $user->user_email ) . '">' . esc_html( $user->user_email ) . '</a></td>';
+			echo '<td>' . esc_html( get_user_meta( $user->ID, 'lworks_phone', true ) ) . '</td>';
+			echo '</tr>';
+		}
+
+		echo '</tbody></table></div>';
+		echo '</section>';
+	}
+
+	/**
 	 * Render a coordinator membership action form.
 	 *
 	 * @param int    $membership_id Membership ID.
@@ -788,6 +923,11 @@ class LWorks_Shortcodes {
 			return;
 		}
 
+		$preferences = LWorks_Repository::get_user_preferences( $user->ID );
+		if ( empty( $preferences['email_responses'] ) ) {
+			return;
+		}
+
 		$subject = __( 'Someone responded to your littleWORKS request', 'littleworks-of-mercy' );
 		$body    = __( 'Someone responded to your private request. Please log in to view the response.', 'littleworks-of-mercy' ) . "\n\n" . LWorks_Repository::get_page_url( 'dashboard_page_id' );
 
@@ -837,7 +977,8 @@ class LWorks_Shortcodes {
 			}
 
 			$user = get_user_by( 'id', $user_id );
-			if ( $user && is_email( $user->user_email ) ) {
+			$preferences = $user ? LWorks_Repository::get_user_preferences( $user->ID ) : array();
+			if ( $user && is_email( $user->user_email ) && ! empty( $preferences['email_new_requests'] ) ) {
 				$emails[] = $user->user_email;
 			}
 		}

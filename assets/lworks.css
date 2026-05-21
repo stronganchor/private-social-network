@@ -74,6 +74,20 @@
 	resize: vertical;
 }
 
+.lworks-checkbox {
+	align-items: flex-start;
+	display: flex;
+	font-weight: 500;
+	gap: 0.6rem;
+}
+
+.lworks-checkbox input {
+	flex: 0 0 auto;
+	margin-top: 0.25rem;
+	min-height: auto;
+	width: auto;
+}
+
 .lworks-button {
 	align-items: center;
 	background: var(--lworks-primary);
@@ -226,6 +240,38 @@
 
 .lworks-help {
 	margin-bottom: 0;
+}
+
+.lworks-prefilled-group {
+	background: var(--lworks-soft);
+	border: 1px solid var(--lworks-border);
+	border-radius: 6px;
+	margin: 0;
+	padding: 0.75rem;
+}
+
+.lworks-table-wrap {
+	overflow-x: auto;
+}
+
+.lworks-table {
+	border-collapse: collapse;
+	min-width: 42rem;
+	width: 100%;
+}
+
+.lworks-table th,
+.lworks-table td {
+	border-bottom: 1px solid var(--lworks-border);
+	padding: 0.65rem;
+	text-align: left;
+	vertical-align: top;
+}
+
+.lworks-table th {
+	color: var(--lworks-muted);
+	font-size: 0.86rem;
+	text-transform: uppercase;
 }
 
 @media (max-width: 700px) {

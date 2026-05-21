@@ -33,6 +33,7 @@ class LWorks_Repository {
 			'member_remember_days' => 180,
 			'staff_remember_days'  => 30,
 			'notification_email'   => get_option( 'admin_email' ),
+			'registration_page_id' => 0,
 			'dashboard_page_id'    => 0,
 			'coordinator_page_id'  => 0,
 		);
@@ -292,6 +293,48 @@ class LWorks_Repository {
 				INNER JOIN {$groups} g ON g.id = m.group_id
 				WHERE {$where}
 				ORDER BY g.name ASC",
+				$params
+			)
+		);
+	}
+
+	/**
+	 * Get members for one or more groups.
+	 *
+	 * @param array $group_ids Group IDs.
+	 * @param array $statuses Membership statuses.
+	 * @return array
+	 */
+	public static function get_members_for_groups( $group_ids, $statuses = array( 'active', 'pending' ) ) {
+		global $wpdb;
+
+		$group_ids = array_values( array_unique( array_filter( array_map( 'absint', $group_ids ) ) ) );
+		if ( empty( $group_ids ) ) {
+			return array();
+		}
+
+		$members = self::table( 'group_members' );
+		$groups  = self::table( 'groups' );
+		$where   = array();
+		$params  = array();
+
+		$group_placeholders = implode( ',', array_fill( 0, count( $group_ids ), '%d' ) );
+		$where[]            = "m.group_id IN ({$group_placeholders})";
+		$params             = array_merge( $params, $group_ids );
+
+		if ( ! empty( $statuses ) ) {
+			$status_placeholders = implode( ',', array_fill( 0, count( $statuses ), '%s' ) );
+			$where[]             = "m.status IN ({$status_placeholders})";
+			$params              = array_merge( $params, array_map( array( __CLASS__, 'sanitize_membership_status' ), $statuses ) );
+		}
+
+		return $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT m.*, g.name AS group_name
+				FROM {$members} m
+				INNER JOIN {$groups} g ON g.id = m.group_id
+				WHERE " . implode( ' AND ', $where ) . '
+				ORDER BY g.name ASC, m.status ASC, m.member_role DESC, m.created_at ASC',
 				$params
 			)
 		);
@@ -661,6 +704,71 @@ class LWorks_Repository {
 			),
 			array( '%d', '%s', '%d', '%s', '%s', '%s' )
 		);
+	}
+
+	/**
+	 * Get recent audit entries.
+	 *
+	 * @param int $limit Limit.
+	 * @return array
+	 */
+	public static function get_audit_entries( $limit = 100 ) {
+		global $wpdb;
+
+		$table = self::table( 'audit_log' );
+		$limit = min( 500, max( 1, absint( $limit ) ) );
+
+		return $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT * FROM {$table} ORDER BY created_at DESC LIMIT %d",
+				$limit
+			)
+		);
+	}
+
+	/**
+	 * Default member notification preferences.
+	 *
+	 * @return array
+	 */
+	public static function default_user_preferences() {
+		return array(
+			'email_new_requests' => 1,
+			'email_responses'    => 1,
+		);
+	}
+
+	/**
+	 * Get a user's notification preferences.
+	 *
+	 * @param int $user_id User ID.
+	 * @return array
+	 */
+	public static function get_user_preferences( $user_id ) {
+		$stored = get_user_meta( absint( $user_id ), 'lworks_preferences', true );
+		if ( ! is_array( $stored ) ) {
+			$stored = array();
+		}
+
+		return wp_parse_args( $stored, self::default_user_preferences() );
+	}
+
+	/**
+	 * Save a user's notification preferences.
+	 *
+	 * @param int   $user_id User ID.
+	 * @param array $preferences Preferences.
+	 * @return void
+	 */
+	public static function save_user_preferences( $user_id, $preferences ) {
+		$defaults = self::default_user_preferences();
+		$clean    = array();
+
+		foreach ( $defaults as $key => $default ) {
+			$clean[ $key ] = empty( $preferences[ $key ] ) ? 0 : 1;
+		}
+
+		update_user_meta( absint( $user_id ), 'lworks_preferences', $clean );
 	}
 
 	/**

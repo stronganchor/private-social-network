@@ -4,7 +4,7 @@ Tags: private community, parish, charity, members, requests
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.1.0
+Stable tag: 0.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -36,6 +36,8 @@ Private request content is not included in notification emails.
 
 `[lworks_coordinator]` - Coordinator approval screen.
 
+`[lworks_profile]` - Standalone member notification settings.
+
 == GitHub Updates ==
 
 This plugin uses Plugin Update Checker and checks `https://github.com/stronganchor/private-social-network/`.
@@ -43,6 +45,12 @@ This plugin uses Plugin Update Checker and checks `https://github.com/stronganch
 For a private GitHub repository, define `LWORKS_GITHUB_TOKEN` in `wp-config.php` or provide a token through the `lworks_github_token` filter.
 
 == Changelog ==
+
+= 0.2.0 =
+* Added registration-page invite links and invite-code prefill.
+* Added member notification preferences.
+* Added coordinator group roster.
+* Added admin audit log screen.
 
 = 0.1.0 =
 * Initial implementation.

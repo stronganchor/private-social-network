@@ -9,6 +9,9 @@ WordPress plugin for a private, approval-based parish/community request board.
 - Provides pending registration review by site admins and assigned group coordinators.
 - Keeps private requests visible only to approved members of the same group.
 - Sends notification emails without exposing private request details in email.
+- Lets members control new-request and response email notifications.
+- Gives coordinators a roster for the groups they manage.
+- Adds admin audit-log visibility.
 - Extends remember-me sessions through plugin settings, with a shorter default for coordinators/admins.
 - Uses Plugin Update Checker for GitHub-hosted updates.
 
@@ -20,8 +23,9 @@ Create normal WordPress pages and place these shortcodes:
 - `[lworks_login]` for member login.
 - `[lworks_dashboard]` for the private request feed and posting form.
 - `[lworks_coordinator]` for frontend coordinator approval.
+- `[lworks_profile]` for standalone member notification settings.
 
-Set the dashboard and coordinator pages in **littleWORKS > Settings** after creating them.
+Set the registration, dashboard, and coordinator pages in **littleWORKS > Settings** after creating them.
 
 ## GitHub Updates
 
@@ -50,8 +54,10 @@ To release a version:
 1. Install and activate the plugin.
 2. Go to **littleWORKS > Groups** and create at least one group.
 3. Create pages for registration, login, dashboard, and coordinator review.
-4. Go to **littleWORKS > Settings** and select the dashboard/coordinator pages.
+4. Go to **littleWORKS > Settings** and select the registration, dashboard, and coordinator pages.
 5. Add existing WordPress users as group coordinators from **littleWORKS > Groups**.
+
+Group invite links are shown under **littleWORKS > Groups** after the registration page is selected.
 
 ## Privacy Notes
 
