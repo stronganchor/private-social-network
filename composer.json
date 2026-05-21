@@ -1,0 +1,9 @@
+{
+    "name": "stronganchor/private-social-network",
+    "description": "WordPress plugin for the littleWORKS of Mercy private parish/community request board.",
+    "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
+    "require": {
+        "yahnis-elsts/plugin-update-checker": "^5.6"
+    }
+}

@@ -1,0 +1,252 @@
+.lworks {
+	--lworks-border: #d6dbe2;
+	--lworks-ink: #1b2430;
+	--lworks-muted: #5f6b7a;
+	--lworks-surface: #ffffff;
+	--lworks-soft: #f5f7fa;
+	--lworks-primary: #2f6f73;
+	--lworks-primary-dark: #24575a;
+	--lworks-danger: #9f2f2f;
+	color: var(--lworks-ink);
+	font-size: 1rem;
+	line-height: 1.5;
+}
+
+.lworks * {
+	box-sizing: border-box;
+}
+
+.lworks a {
+	color: var(--lworks-primary-dark);
+}
+
+.lworks-panel,
+.lworks-card {
+	background: var(--lworks-surface);
+	border: 1px solid var(--lworks-border);
+	border-radius: 8px;
+	margin: 0 0 1.25rem;
+	padding: 1.25rem;
+}
+
+.lworks-panel h2,
+.lworks-feed h2,
+.lworks-card h3 {
+	margin-top: 0;
+}
+
+.lworks-grid {
+	display: grid;
+	gap: 1rem;
+}
+
+.lworks-grid-2 {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.lworks-form {
+	display: grid;
+	gap: 1rem;
+}
+
+.lworks-form label,
+.lworks-status-form label {
+	display: grid;
+	gap: 0.35rem;
+	font-weight: 600;
+}
+
+.lworks-form input,
+.lworks-form select,
+.lworks-form textarea,
+.lworks-inline-form input,
+.lworks-inline-form select {
+	border: 1px solid var(--lworks-border);
+	border-radius: 6px;
+	font: inherit;
+	min-height: 2.6rem;
+	padding: 0.55rem 0.65rem;
+	width: 100%;
+}
+
+.lworks-form textarea {
+	min-height: 8rem;
+	resize: vertical;
+}
+
+.lworks-button {
+	align-items: center;
+	background: var(--lworks-primary);
+	border: 0;
+	border-radius: 6px;
+	color: #ffffff;
+	cursor: pointer;
+	display: inline-flex;
+	font: inherit;
+	font-weight: 700;
+	justify-content: center;
+	min-height: 2.6rem;
+	padding: 0.55rem 0.85rem;
+	text-decoration: none;
+}
+
+.lworks-button:hover,
+.lworks-button:focus {
+	background: var(--lworks-primary-dark);
+	color: #ffffff;
+}
+
+.lworks-button-secondary {
+	background: #e8eef3;
+	color: var(--lworks-ink);
+}
+
+.lworks-button-secondary:hover,
+.lworks-button-secondary:focus {
+	background: #dce5ec;
+	color: var(--lworks-ink);
+}
+
+.lworks-button-danger {
+	background: var(--lworks-danger);
+}
+
+.lworks-notice {
+	border: 1px solid var(--lworks-border);
+	border-radius: 8px;
+	margin: 0 0 1rem;
+	padding: 0.85rem 1rem;
+}
+
+.lworks-notice-success {
+	background: #edf8f1;
+	border-color: #b9e2c5;
+}
+
+.lworks-notice-info {
+	background: #f5f7fa;
+}
+
+.lworks-notice-error {
+	background: #fbeeee;
+	border-color: #e3b9b9;
+}
+
+.lworks-card-header {
+	align-items: flex-start;
+	display: flex;
+	gap: 1rem;
+	justify-content: space-between;
+}
+
+.lworks-meta {
+	color: var(--lworks-muted);
+	font-size: 0.92rem;
+	margin: 0 0 0.35rem;
+}
+
+.lworks-status {
+	background: var(--lworks-soft);
+	border: 1px solid var(--lworks-border);
+	border-radius: 999px;
+	display: inline-flex;
+	font-size: 0.84rem;
+	font-weight: 700;
+	line-height: 1.2;
+	padding: 0.35rem 0.6rem;
+	white-space: nowrap;
+}
+
+.lworks-status-open {
+	background: #f5f7fa;
+}
+
+.lworks-status-responding {
+	background: #fff6dc;
+	border-color: #e6d28d;
+}
+
+.lworks-status-fulfilled {
+	background: #edf8f1;
+	border-color: #b9e2c5;
+}
+
+.lworks-status-closed {
+	background: #eceff3;
+}
+
+.lworks-content {
+	margin: 1rem 0;
+}
+
+.lworks-responses {
+	background: var(--lworks-soft);
+	border-radius: 8px;
+	display: grid;
+	gap: 0.65rem;
+	margin: 1rem 0;
+	padding: 1rem;
+}
+
+.lworks-response {
+	border-bottom: 1px solid var(--lworks-border);
+	padding-bottom: 0.65rem;
+}
+
+.lworks-response:last-child {
+	border-bottom: 0;
+	padding-bottom: 0;
+}
+
+.lworks-actions,
+.lworks-response-controls {
+	align-items: center;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.75rem;
+	margin-top: 1rem;
+}
+
+.lworks-inline-form {
+	align-items: center;
+	display: inline-flex;
+	gap: 0.5rem;
+	margin: 0;
+}
+
+.lworks-help-form {
+	flex: 1 1 24rem;
+}
+
+.lworks-status-form {
+	border-top: 1px solid var(--lworks-border);
+	margin-top: 1rem;
+	padding-top: 1rem;
+}
+
+.lworks-help {
+	margin-bottom: 0;
+}
+
+@media (max-width: 700px) {
+	.lworks-grid-2 {
+		grid-template-columns: 1fr;
+	}
+
+	.lworks-card-header,
+	.lworks-inline-form,
+	.lworks-response-controls {
+		align-items: stretch;
+		flex-direction: column;
+	}
+
+	.lworks-status {
+		align-self: flex-start;
+		white-space: normal;
+	}
+
+	.lworks-help-form {
+		flex-basis: auto;
+		width: 100%;
+	}
+}
