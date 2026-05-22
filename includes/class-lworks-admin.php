@@ -119,6 +119,7 @@ class LWorks_Admin {
 		echo '<h2>' . esc_html__( 'Setup shortcodes', 'littleworks-of-mercy' ) . '</h2>';
 		echo '<table class="widefat striped"><tbody>';
 		self::render_shortcode_row( '[lworks_registration]', __( 'Public registration form', 'littleworks-of-mercy' ) );
+		self::render_shortcode_row( '[lworks_member_links]', __( 'Session-aware access and dashboard links', 'littleworks-of-mercy' ) );
 		self::render_shortcode_row( '[lworks_login]', __( 'Login form with remember-me enabled by default', 'littleworks-of-mercy' ) );
 		self::render_shortcode_row( '[lworks_dashboard]', __( 'Private member dashboard and request feed', 'littleworks-of-mercy' ) );
 		self::render_shortcode_row( '[lworks_coordinator]', __( 'Frontend coordinator approval screen', 'littleworks-of-mercy' ) );

@@ -17,11 +17,87 @@ class LWorks_Shortcodes {
 	 */
 	public static function init() {
 		add_shortcode( 'lworks_registration', array( __CLASS__, 'registration_shortcode' ) );
+		add_shortcode( 'lworks_member_links', array( __CLASS__, 'member_links_shortcode' ) );
 		add_shortcode( 'lworks_login', array( __CLASS__, 'login_shortcode' ) );
 		add_shortcode( 'lworks_dashboard', array( __CLASS__, 'dashboard_shortcode' ) );
 		add_shortcode( 'lworks_request_board', array( __CLASS__, 'dashboard_shortcode' ) );
 		add_shortcode( 'lworks_coordinator', array( __CLASS__, 'coordinator_shortcode' ) );
 		add_shortcode( 'lworks_profile', array( __CLASS__, 'profile_shortcode' ) );
+	}
+
+	/**
+	 * Session-aware member links.
+	 *
+	 * @param array $atts Shortcode attributes.
+	 * @return string
+	 */
+	public static function member_links_shortcode( $atts = array() ) {
+		LWorks_Plugin::use_frontend_assets();
+
+		$atts = shortcode_atts(
+			array(
+				'wrap_class'      => '',
+				'button_class'    => 'lworks-button',
+				'secondary_class' => 'lworks-button lworks-button-secondary',
+				'logout_class'    => '',
+				'show_logout'     => '1',
+				'show_coordinator' => '1',
+			),
+			$atts,
+			'lworks_member_links'
+		);
+
+		$wrap_class      = trim( 'lworks-member-links ' . self::sanitize_class_list( $atts['wrap_class'] ) );
+		$button_class    = self::sanitize_class_list( $atts['button_class'] );
+		$secondary_class = self::sanitize_class_list( $atts['secondary_class'] );
+		$logout_class    = self::sanitize_class_list( '' !== $atts['logout_class'] ? $atts['logout_class'] : $atts['secondary_class'] );
+		$show_logout     = self::truthy_shortcode_value( $atts['show_logout'] );
+		$show_coordinator = self::truthy_shortcode_value( $atts['show_coordinator'] );
+		$links           = array();
+
+		if ( is_user_logged_in() ) {
+			$links[] = array(
+				'url'   => LWorks_Repository::get_page_url( 'dashboard_page_id' ),
+				'label' => __( 'Dashboard', 'littleworks-of-mercy' ),
+				'class' => $button_class,
+			);
+
+			if ( $show_coordinator && ( current_user_can( LWORKS_CAP_MANAGE_ASSIGNED ) || current_user_can( LWORKS_CAP_MANAGE_ALL ) ) ) {
+				$links[] = array(
+					'url'   => LWorks_Repository::get_page_url( 'coordinator_page_id' ),
+					'label' => __( 'Coordinator Review', 'littleworks-of-mercy' ),
+					'class' => $secondary_class,
+				);
+			}
+
+			if ( $show_logout ) {
+				$links[] = array(
+					'url'   => wp_logout_url( home_url( '/' ) ),
+					'label' => __( 'Sign out', 'littleworks-of-mercy' ),
+					'class' => $logout_class,
+				);
+			}
+		} else {
+			$links[] = array(
+				'url'   => LWorks_Repository::get_page_url( 'registration_page_id' ),
+				'label' => __( 'Request access', 'littleworks-of-mercy' ),
+				'class' => $button_class,
+			);
+			$links[] = array(
+				'url'   => self::login_page_url(),
+				'label' => __( 'Member sign in', 'littleworks-of-mercy' ),
+				'class' => $secondary_class,
+			);
+		}
+
+		ob_start();
+		echo '<div class="' . esc_attr( $wrap_class ) . '">';
+		foreach ( $links as $link ) {
+			echo '<a class="' . esc_attr( $link['class'] ) . '" href="' . esc_url( $link['url'] ) . '">' . esc_html( $link['label'] ) . '</a>';
+		}
+		echo '</div>';
+
+		return ob_get_clean();
 	}
 
 	/**
@@ -33,7 +109,7 @@ class LWorks_Shortcodes {
 		LWorks_Plugin::use_frontend_assets();
 
 		if ( is_user_logged_in() ) {
-			return self::notice( __( 'You are already logged in.', 'littleworks-of-mercy' ), 'info' );
+			return '<div class="lworks">' . self::notice( __( 'You are already logged in.', 'littleworks-of-mercy' ), 'info' ) . self::member_links_shortcode() . '</div>';
 		}
 
 		$groups              = LWorks_Repository::get_groups( true );
@@ -137,7 +213,7 @@ class LWorks_Shortcodes {
 		LWorks_Plugin::use_frontend_assets();
 
 		if ( is_user_logged_in() ) {
-			return '<div class="lworks">' . self::notice( __( 'You are logged in.', 'littleworks-of-mercy' ), 'success' ) . '</div>';
+			return '<div class="lworks">' . self::notice( __( 'You are logged in.', 'littleworks-of-mercy' ), 'success' ) . self::member_links_shortcode() . '</div>';
 		}
 
 		ob_start();
@@ -286,6 +362,47 @@ class LWorks_Shortcodes {
 		echo '</div>';
 
 		return ob_get_clean();
+	}
+
+	/**
+	 * Find the member login page, falling back to the WordPress login form.
+	 *
+	 * @return string
+	 */
+	private static function login_page_url() {
+		$page = get_page_by_path( 'member-login' );
+
+		if ( $page ) {
+			$url = get_permalink( $page );
+			if ( $url ) {
+				return $url;
+			}
+		}
+
+		return wp_login_url( LWorks_Repository::get_page_url( 'dashboard_page_id' ) );
+	}
+
+	/**
+	 * Sanitize a space-separated class list.
+	 *
+	 * @param string $classes Class list.
+	 * @return string
+	 */
+	private static function sanitize_class_list( $classes ) {
+		$classes = preg_split( '/\s+/', (string) $classes );
+		$classes = array_filter( array_map( 'sanitize_html_class', $classes ) );
+
+		return implode( ' ', $classes );
+	}
+
+	/**
+	 * Parse shortcode boolean-ish values.
+	 *
+	 * @param mixed $value Attribute value.
+	 * @return bool
+	 */
+	private static function truthy_shortcode_value( $value ) {
+		return in_array( strtolower( (string) $value ), array( '1', 'true', 'yes', 'on' ), true );
 	}
 
 	/**

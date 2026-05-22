@@ -21,6 +21,7 @@ WordPress plugin for a private, approval-based parish/community request board.
 Create normal WordPress pages and place these shortcodes:
 
 - `[lworks_registration]` for public access requests.
+- `[lworks_member_links]` for session-aware request/sign-in links or logged-in dashboard links.
 - `[lworks_login]` for member login.
 - `[lworks_dashboard]` for the private request feed and posting form.
 - `[lworks_coordinator]` for frontend coordinator approval.

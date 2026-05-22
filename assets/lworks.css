@@ -213,12 +213,17 @@
 }
 
 .lworks-actions,
+.lworks-member-links,
 .lworks-response-controls {
 	align-items: center;
 	display: flex;
 	flex-wrap: wrap;
 	gap: 0.75rem;
 	margin-top: 1rem;
+}
+
+.lworks-member-links {
+	margin-bottom: 1rem;
 }
 
 .lworks-inline-form {
@@ -290,6 +295,7 @@
 
 	.lworks-card-header,
 	.lworks-inline-form,
+	.lworks-member-links,
 	.lworks-response-controls {
 		align-items: stretch;
 		flex-direction: column;
