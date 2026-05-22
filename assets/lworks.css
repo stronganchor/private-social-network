@@ -112,6 +112,22 @@
 	width: auto;
 }
 
+.lworks-registration-intro {
+	background: var(--lworks-soft);
+	border-left: 4px solid var(--lworks-primary);
+	border-radius: 6px;
+	padding: 0.85rem 1rem;
+}
+
+.lworks-registration-intro p {
+	margin: 0;
+}
+
+.lworks-registration-intro p + p {
+	color: var(--lworks-muted);
+	margin-top: 0.35rem;
+}
+
 .lworks .lworks-button,
 .lworks .login-submit input[type="submit"] {
 	-webkit-appearance: none;

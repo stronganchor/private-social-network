@@ -176,6 +176,7 @@ class LWorks_Shortcodes {
 			<?php wp_nonce_field( 'lworks_register', 'lworks_nonce' ); ?>
 			<input type="hidden" name="lworks_action" value="lworks_register">
 			<?php self::render_registration_antispam_fields( $settings ); ?>
+			<?php self::render_registration_intro( $prefill_invite_token, $prefill_group ); ?>
 
 			<div class="lworks-grid lworks-grid-2">
 				<label>
@@ -240,12 +241,40 @@ class LWorks_Shortcodes {
 				<textarea name="connection_note" rows="4"></textarea>
 			</label>
 
-			<button type="submit" class="lworks-button"><?php esc_html_e( 'Request access', 'littleworks-of-mercy' ); ?></button>
+			<button type="submit" class="lworks-button">
+				<?php echo esc_html( $prefill_invite_token ? __( 'Create account', 'littleworks-of-mercy' ) : __( 'Request access', 'littleworks-of-mercy' ) ); ?>
+			</button>
 		</form>
 		<?php
 
 		echo '</div>';
 		return ob_get_clean();
+	}
+
+	/**
+	 * Render registration intro copy.
+	 *
+	 * @param string $invite_token Secure invite token, if present.
+	 * @param object $prefill_group Prefilled group, if present.
+	 * @return void
+	 */
+	private static function render_registration_intro( $invite_token, $prefill_group ) {
+		echo '<div class="lworks-registration-intro">';
+
+		if ( $invite_token && $prefill_group ) {
+			$intro_heading = sprintf(
+				/* translators: %s: Group name. */
+				__( 'You are registering with a secure invitation for %s.', 'littleworks-of-mercy' ),
+				$prefill_group->name
+			);
+
+			echo '<p><strong>' . esc_html( $intro_heading ) . '</strong></p>';
+			echo '<p>' . esc_html__( 'Create your account below and, if the invitation is still available, your member access will open automatically after signup.', 'littleworks-of-mercy' ) . '</p>';
+		} else {
+			echo '<p>' . esc_html__( 'Introduce yourself and choose the parish or community you are connected with. A coordinator will review the request before access is opened.', 'littleworks-of-mercy' ) . '</p>';
+		}
+
+		echo '</div>';
 	}
 
 	/**
