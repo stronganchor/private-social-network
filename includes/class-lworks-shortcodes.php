@@ -62,12 +62,16 @@ class LWorks_Shortcodes {
 				'class' => $button_class,
 			);
 
-			if ( $show_coordinator && ( current_user_can( LWORKS_CAP_MANAGE_ASSIGNED ) || current_user_can( LWORKS_CAP_MANAGE_ALL ) ) ) {
-				$links[] = array(
-					'url'   => LWorks_Repository::get_page_url( 'coordinator_page_id' ),
-					'label' => __( 'Coordinator Review', 'littleworks-of-mercy' ),
-					'class' => $secondary_class,
-				);
+			if ( $show_coordinator && self::current_user_can_use_staff_pages() ) {
+				$coordinator_url = LWorks_Repository::get_configured_page_url( 'coordinator_page_id' );
+
+				if ( $coordinator_url ) {
+					$links[] = array(
+						'url'   => $coordinator_url,
+						'label' => __( 'Coordinator Review', 'littleworks-of-mercy' ),
+						'class' => $secondary_class,
+					);
+				}
 			}
 
 			if ( $show_logout ) {
@@ -284,6 +288,7 @@ class LWorks_Shortcodes {
 
 		ob_start();
 		echo '<div class="lworks lworks-dashboard">';
+		self::render_member_header( 'dashboard' );
 		echo $message; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 
 		if ( empty( $memberships ) ) {
@@ -316,7 +321,7 @@ class LWorks_Shortcodes {
 			return self::login_shortcode();
 		}
 
-		if ( ! current_user_can( LWORKS_CAP_MANAGE_ASSIGNED ) && ! current_user_can( LWORKS_CAP_MANAGE_ALL ) ) {
+		if ( ! self::current_user_can_use_staff_pages() ) {
 			return '<div class="lworks">' . self::notice( __( 'You do not have coordinator access.', 'littleworks-of-mercy' ), 'error' ) . '</div>';
 		}
 
@@ -325,6 +330,7 @@ class LWorks_Shortcodes {
 
 		ob_start();
 		echo '<div class="lworks lworks-coordinator">';
+		self::render_member_header( 'coordinator' );
 		echo $message; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		echo '<h2>' . esc_html__( 'Pending registrations', 'littleworks-of-mercy' ) . '</h2>';
 
@@ -393,6 +399,104 @@ class LWorks_Shortcodes {
 		$classes = array_filter( array_map( 'sanitize_html_class', $classes ) );
 
 		return implode( ' ', $classes );
+	}
+
+	/**
+	 * Render member/staff navigation for private pages.
+	 *
+	 * @param string $active Active section ID.
+	 * @return void
+	 */
+	private static function render_member_header( $active = '' ) {
+		$links = array();
+
+		$dashboard_url = LWorks_Repository::get_configured_page_url( 'dashboard_page_id' );
+		if ( $dashboard_url ) {
+			$links[] = array(
+				'id'    => 'dashboard',
+				'url'   => $dashboard_url,
+				'label' => __( 'Dashboard', 'littleworks-of-mercy' ),
+				'class' => 'lworks-button lworks-button-secondary',
+			);
+		}
+
+		$staff_links = array();
+		if ( self::current_user_can_use_staff_pages() ) {
+			$coordinator_url = LWorks_Repository::get_configured_page_url( 'coordinator_page_id' );
+			if ( $coordinator_url ) {
+				$staff_links[] = array(
+					'id'    => 'coordinator',
+					'url'   => $coordinator_url,
+					'label' => __( 'Coordinator Review', 'littleworks-of-mercy' ),
+					'class' => 'lworks-button lworks-button-secondary lworks-button-staff',
+				);
+			}
+
+			/**
+			 * Add future staff-only frontend links to the private member header.
+			 *
+			 * Link arrays should include id, url, label, and optional class keys.
+			 *
+			 * @param array  $staff_links Staff navigation links.
+			 * @param string $active      Active section ID.
+			 * @param int    $user_id     Current user ID.
+			 */
+			$staff_links = apply_filters( 'lworks_staff_nav_links', $staff_links, $active, get_current_user_id() );
+		}
+
+		$links = array_merge( $links, $staff_links );
+
+		/**
+		 * Customize private member navigation links before logout is appended.
+		 *
+		 * @param array  $links  Navigation links.
+		 * @param string $active Active section ID.
+		 * @param int    $user_id Current user ID.
+		 */
+		$links = apply_filters( 'lworks_member_nav_links', $links, $active, get_current_user_id() );
+
+		$links[] = array(
+			'id'    => 'logout',
+			'url'   => wp_logout_url( home_url( '/' ) ),
+			'label' => __( 'Sign out', 'littleworks-of-mercy' ),
+			'class' => 'lworks-button lworks-button-secondary lworks-button-quiet',
+		);
+
+		echo '<nav class="lworks-member-header" aria-label="' . esc_attr__( 'Member navigation', 'littleworks-of-mercy' ) . '">';
+		echo '<a class="lworks-member-home" href="' . esc_url( home_url( '/' ) ) . '"><span class="lworks-member-home-mark" aria-hidden="true"></span><span>' . esc_html__( 'littleWORKS Home', 'littleworks-of-mercy' ) . '</span></a>';
+		echo '<div class="lworks-member-nav-actions">';
+
+		foreach ( $links as $link ) {
+			if ( empty( $link['url'] ) || empty( $link['label'] ) ) {
+				continue;
+			}
+
+			$id      = isset( $link['id'] ) ? sanitize_key( $link['id'] ) : '';
+			$class   = isset( $link['class'] ) ? self::sanitize_class_list( $link['class'] ) : 'lworks-button lworks-button-secondary';
+			$current = $id && $active === $id;
+
+			if ( $current ) {
+				$class .= ' lworks-button-current';
+			}
+
+			echo '<a class="' . esc_attr( trim( $class ) ) . '" href="' . esc_url( $link['url'] ) . '"' . ( $current ? ' aria-current="page"' : '' ) . '>' . esc_html( $link['label'] ) . '</a>';
+		}
+
+		echo '</div>';
+		echo '</nav>';
+	}
+
+	/**
+	 * Whether the current user can see staff-only frontend links.
+	 *
+	 * @return bool
+	 */
+	private static function current_user_can_use_staff_pages() {
+		if ( current_user_can( LWORKS_CAP_MANAGE_ASSIGNED ) || current_user_can( LWORKS_CAP_MANAGE_ALL ) ) {
+			return true;
+		}
+
+		return ! empty( LWorks_Repository::get_managed_group_ids( get_current_user_id() ) );
 	}
 
 	/**

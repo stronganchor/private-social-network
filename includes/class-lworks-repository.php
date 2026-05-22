@@ -914,12 +914,12 @@ class LWorks_Repository {
 	}
 
 	/**
-	 * Get a configured page URL.
+	 * Get a configured page URL without a homepage fallback.
 	 *
 	 * @param string $key Setting key.
 	 * @return string
 	 */
-	public static function get_page_url( $key ) {
+	public static function get_configured_page_url( $key ) {
 		$settings = self::settings();
 		$page_id  = isset( $settings[ $key ] ) ? absint( $settings[ $key ] ) : 0;
 
@@ -930,6 +930,18 @@ class LWorks_Repository {
 			}
 		}
 
-		return home_url( '/' );
+		return '';
+	}
+
+	/**
+	 * Get a configured page URL.
+	 *
+	 * @param string $key Setting key.
+	 * @return string
+	 */
+	public static function get_page_url( $key ) {
+		$url = self::get_configured_page_url( $key );
+
+		return $url ? $url : home_url( '/' );
 	}
 }

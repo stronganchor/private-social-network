@@ -4,7 +4,7 @@ Tags: private community, parish, charity, members, requests
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.3.2
+Stable tag: 0.3.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,7 +34,7 @@ Private request content is not included in notification emails.
 
 `[lworks_login]` - Login form with remember-me checked by default.
 
-`[lworks_dashboard]` - Private member dashboard and request feed.
+`[lworks_dashboard]` - Private member dashboard with member navigation and request feed.
 
 `[lworks_coordinator]` - Coordinator approval screen.
 
@@ -47,6 +47,10 @@ This plugin uses Plugin Update Checker and checks `https://github.com/stronganch
 For a private GitHub repository, define `LWORKS_GITHUB_TOKEN` in `wp-config.php` or provide a token through the `lworks_github_token` filter.
 
 == Changelog ==
+
+= 0.3.3 =
+* Added member dashboard navigation with homepage, dashboard, staff-only coordinator, and sign-out links.
+* Added filters for future member and staff navigation links.
 
 = 0.3.2 =
 * Polished member dashboard controls for cleaner checkbox, response, and status form alignment.

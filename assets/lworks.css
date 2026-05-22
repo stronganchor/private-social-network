@@ -157,6 +157,34 @@
 	background: var(--lworks-danger);
 }
 
+.lworks-button-current {
+	box-shadow: inset 0 0 0 1px rgba(47, 111, 115, 0.35);
+	color: var(--lworks-primary-dark);
+}
+
+.lworks-button-staff {
+	background: #eef7f5;
+	color: var(--lworks-primary-dark);
+}
+
+.lworks-button-staff:hover,
+.lworks-button-staff:focus {
+	background: #dcece9;
+	color: var(--lworks-primary-dark);
+}
+
+.lworks-button-quiet {
+	background: transparent;
+	box-shadow: inset 0 0 0 1px var(--lworks-border);
+	color: var(--lworks-muted);
+}
+
+.lworks-button-quiet:hover,
+.lworks-button-quiet:focus {
+	background: var(--lworks-soft);
+	color: var(--lworks-ink);
+}
+
 .lworks-notice {
 	border: 1px solid var(--lworks-border);
 	border-radius: 8px;
@@ -256,6 +284,54 @@
 
 .lworks-member-links {
 	margin-bottom: 1rem;
+}
+
+.lworks-member-header {
+	align-items: center;
+	border-bottom: 1px solid var(--lworks-border);
+	display: flex;
+	gap: 1rem;
+	justify-content: space-between;
+	margin: 0 0 1.25rem;
+	padding: 0 0 1rem;
+}
+
+.lworks-member-home {
+	align-items: center;
+	color: var(--lworks-ink);
+	display: inline-flex;
+	font-weight: 800;
+	gap: 0.55rem;
+	line-height: 1.2;
+	text-decoration: none;
+}
+
+.lworks-member-home:hover,
+.lworks-member-home:focus {
+	color: var(--lworks-primary-dark);
+}
+
+.lworks-member-home-mark {
+	border-bottom: 2px solid currentColor;
+	border-left: 2px solid currentColor;
+	display: inline-block;
+	flex: 0 0 auto;
+	height: 0.65rem;
+	transform: rotate(45deg);
+	width: 0.65rem;
+}
+
+.lworks-member-nav-actions {
+	align-items: center;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	justify-content: flex-end;
+}
+
+.lworks-member-nav-actions .lworks-button {
+	min-height: 2.35rem;
+	padding: 0.48rem 0.75rem;
 }
 
 .lworks-inline-form {
@@ -368,6 +444,15 @@
 	.lworks-response-controls {
 		align-items: stretch;
 		flex-direction: column;
+	}
+
+	.lworks-member-header {
+		align-items: stretch;
+		flex-direction: column;
+	}
+
+	.lworks-member-nav-actions {
+		justify-content: flex-start;
 	}
 
 	.lworks-status {
