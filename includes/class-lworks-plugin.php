@@ -16,7 +16,8 @@ class LWorks_Plugin {
 	 * @return void
 	 */
 	public static function init() {
-		add_action( 'init', array( __CLASS__, 'load_textdomain' ) );
+		add_action( 'init', array( __CLASS__, 'load_textdomain' ), 1 );
+		add_action( 'init', array( __CLASS__, 'maybe_upgrade' ), 5 );
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'enqueue_assets' ) );
 		add_filter( 'auth_cookie_expiration', array( __CLASS__, 'auth_cookie_expiration' ), 10, 3 );
 		add_filter( 'login_redirect', array( __CLASS__, 'login_redirect' ), 10, 3 );
@@ -33,6 +34,19 @@ class LWorks_Plugin {
 	 */
 	public static function load_textdomain() {
 		load_plugin_textdomain( 'littleworks-of-mercy', false, dirname( plugin_basename( LWORKS_PLUGIN_FILE ) ) . '/languages' );
+	}
+
+	/**
+	 * Run activation routines after plugin updates that add schema.
+	 *
+	 * @return void
+	 */
+	public static function maybe_upgrade() {
+		if ( get_option( 'lworks_db_version' ) === LWORKS_VERSION ) {
+			return;
+		}
+
+		LWorks_Activator::activate();
 	}
 
 	/**

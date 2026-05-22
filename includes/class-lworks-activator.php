@@ -36,6 +36,7 @@ class LWorks_Activator {
 		$members         = LWorks_Repository::table( 'group_members' );
 		$requests        = LWorks_Repository::table( 'requests' );
 		$responses       = LWorks_Repository::table( 'responses' );
+		$invites         = LWorks_Repository::table( 'invites' );
 		$audit           = LWorks_Repository::table( 'audit_log' );
 
 		$sql = array();
@@ -100,6 +101,29 @@ class LWorks_Activator {
 			KEY request_id (request_id),
 			KEY user_id (user_id),
 			KEY created_at (created_at)
+		) {$charset_collate};";
+
+		$sql[] = "CREATE TABLE {$invites} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			group_id bigint(20) unsigned NOT NULL,
+			created_by bigint(20) unsigned NOT NULL,
+			token_hash char(64) NOT NULL,
+			max_uses int(10) unsigned NOT NULL DEFAULT 1,
+			use_count int(10) unsigned NOT NULL DEFAULT 0,
+			email_restriction varchar(191) NOT NULL DEFAULT '',
+			note text NULL,
+			expires_at datetime NULL,
+			revoked_at datetime NULL,
+			revoked_by bigint(20) unsigned NULL,
+			used_last_at datetime NULL,
+			created_at datetime NOT NULL,
+			updated_at datetime NOT NULL,
+			PRIMARY KEY  (id),
+			UNIQUE KEY token_hash (token_hash),
+			KEY group_id (group_id),
+			KEY created_by (created_by),
+			KEY expires_at (expires_at),
+			KEY revoked_at (revoked_at)
 		) {$charset_collate};";
 
 		$sql[] = "CREATE TABLE {$audit} (

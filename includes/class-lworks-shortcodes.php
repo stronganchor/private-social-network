@@ -11,6 +11,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class LWorks_Shortcodes {
 	/**
+	 * Most recently generated invite URL for this request.
+	 *
+	 * @var string
+	 */
+	private static $generated_invite_url = '';
+
+	/**
 	 * Register shortcodes.
 	 *
 	 * @return void
@@ -118,12 +125,40 @@ class LWorks_Shortcodes {
 
 		$groups              = LWorks_Repository::get_groups( true );
 		$message             = '';
-		$prefill_invite_code = isset( $_GET['invite'] ) ? LWorks_Repository::sanitize_invite_code( wp_unslash( $_GET['invite'] ) ) : '';
-		$prefill_group       = $prefill_invite_code ? LWorks_Repository::get_group_by_invite_code( $prefill_invite_code ) : null;
+		$raw_invite          = isset( $_GET['invite'] ) ? sanitize_text_field( wp_unslash( $_GET['invite'] ) ) : '';
+		$prefill_invite_code = '';
+		$prefill_invite_token = '';
+		$prefill_group       = null;
+		$secure_invite       = null;
+		$invalid_invite      = '';
 		$settings            = LWorks_Repository::settings();
+
+		if ( $raw_invite ) {
+			$secure_invite = LWorks_Repository::get_invite_by_token( $raw_invite );
+			if ( $secure_invite ) {
+				if ( LWorks_Repository::invite_is_usable( $secure_invite ) ) {
+					$prefill_invite_token = LWorks_Repository::sanitize_invite_token( $raw_invite );
+					$prefill_group        = (object) array(
+						'id'   => (int) $secure_invite->group_id,
+						'name' => $secure_invite->group_name,
+					);
+				} else {
+					$invalid_invite = self::invite_status_message( LWorks_Repository::invite_status( $secure_invite ) );
+				}
+			} else {
+				$prefill_invite_code = LWorks_Repository::sanitize_invite_code( $raw_invite );
+				$prefill_group       = $prefill_invite_code ? LWorks_Repository::get_group_by_invite_code( $prefill_invite_code ) : null;
+
+				if ( ! $prefill_group ) {
+					$invalid_invite = __( 'That invite link or code was not recognized.', 'littleworks-of-mercy' );
+				}
+			}
+		}
 
 		if ( self::is_post_action( 'lworks_register' ) ) {
 			$message = self::handle_registration();
+		} elseif ( $invalid_invite ) {
+			$message = self::notice( $invalid_invite, 'error' );
 		}
 
 		ob_start();
@@ -176,8 +211,13 @@ class LWorks_Shortcodes {
 
 			<?php if ( $prefill_group ) : ?>
 				<input type="hidden" name="group_id" value="<?php echo esc_attr( $prefill_group->id ); ?>">
-				<input type="hidden" name="invite_code" value="<?php echo esc_attr( $prefill_invite_code ); ?>">
-				<p class="lworks-prefilled-group"><strong><?php esc_html_e( 'Parish or community:', 'littleworks-of-mercy' ); ?></strong> <?php echo esc_html( $prefill_group->name ); ?></p>
+				<?php if ( $prefill_invite_token ) : ?>
+					<input type="hidden" name="invite_token" value="<?php echo esc_attr( $prefill_invite_token ); ?>">
+					<p class="lworks-prefilled-group"><strong><?php esc_html_e( 'Secure invitation:', 'littleworks-of-mercy' ); ?></strong> <?php echo esc_html( $prefill_group->name ); ?><br><span class="lworks-meta"><?php esc_html_e( 'This invitation can approve your account automatically after signup.', 'littleworks-of-mercy' ); ?></span></p>
+				<?php else : ?>
+					<input type="hidden" name="invite_code" value="<?php echo esc_attr( $prefill_invite_code ); ?>">
+					<p class="lworks-prefilled-group"><strong><?php esc_html_e( 'Parish or community:', 'littleworks-of-mercy' ); ?></strong> <?php echo esc_html( $prefill_group->name ); ?></p>
+				<?php endif; ?>
 			<?php else : ?>
 				<label>
 					<span><?php esc_html_e( 'Parish or community', 'littleworks-of-mercy' ); ?></span>
@@ -364,6 +404,7 @@ class LWorks_Shortcodes {
 			echo '</div>';
 		}
 
+		self::render_invite_panel();
 		self::render_coordinator_roster();
 		echo '</div>';
 
@@ -706,8 +747,11 @@ class LWorks_Shortcodes {
 		$password         = isset( $_POST['password'] ) ? (string) wp_unslash( $_POST['password'] ) : '';
 		$password_confirm = isset( $_POST['password_confirm'] ) ? (string) wp_unslash( $_POST['password_confirm'] ) : '';
 		$group_id         = isset( $_POST['group_id'] ) ? absint( $_POST['group_id'] ) : 0;
-		$invite_code      = isset( $_POST['invite_code'] ) ? LWorks_Repository::sanitize_invite_code( $_POST['invite_code'] ) : '';
+		$invite_token     = isset( $_POST['invite_token'] ) ? LWorks_Repository::sanitize_invite_token( wp_unslash( $_POST['invite_token'] ) ) : '';
+		$invite_code      = isset( $_POST['invite_code'] ) ? LWorks_Repository::sanitize_invite_code( wp_unslash( $_POST['invite_code'] ) ) : '';
 		$connection_note  = isset( $_POST['connection_note'] ) ? sanitize_textarea_field( wp_unslash( $_POST['connection_note'] ) ) : '';
+		$secure_invite    = null;
+		$auto_approve     = false;
 
 		if ( ! is_email( $email ) || '' === $first_name || '' === $last_name ) {
 			return self::notice( __( 'Please enter your name and a valid email address.', 'littleworks-of-mercy' ), 'error' );
@@ -721,7 +765,19 @@ class LWorks_Shortcodes {
 			return self::notice( __( 'Please enter matching passwords with at least 10 characters.', 'littleworks-of-mercy' ), 'error' );
 		}
 
-		if ( $invite_code ) {
+		if ( $invite_token ) {
+			$secure_invite = LWorks_Repository::get_invite_by_token( $invite_token );
+			if ( ! $secure_invite || ! LWorks_Repository::invite_is_usable( $secure_invite ) ) {
+				return self::notice( __( 'That secure invitation is no longer available. Please ask for a new link or submit a regular request for review.', 'littleworks-of-mercy' ), 'error' );
+			}
+
+			if ( ! empty( $secure_invite->email_restriction ) && strtolower( $secure_invite->email_restriction ) !== strtolower( $email ) ) {
+				return self::notice( __( 'This invitation was created for a different email address.', 'littleworks-of-mercy' ), 'error' );
+			}
+
+			$group_id     = (int) $secure_invite->group_id;
+			$auto_approve = true;
+		} elseif ( $invite_code ) {
 			$invite_group = LWorks_Repository::get_group_by_invite_code( $invite_code );
 			if ( ! $invite_group ) {
 				return self::notice( __( 'That invite code was not recognized.', 'littleworks-of-mercy' ), 'error' );
@@ -755,8 +811,20 @@ class LWorks_Shortcodes {
 		update_user_meta( $user_id, 'lworks_phone', $phone );
 		$membership_id = LWorks_Repository::save_membership( $group_id, $user_id, 'pending', 'member', $connection_note );
 
+		if ( $auto_approve && $secure_invite && LWorks_Repository::use_invite( $secure_invite->id, $user_id ) ) {
+			LWorks_Repository::approve_membership( $membership_id, absint( $secure_invite->created_by ) );
+			LWorks_Repository::audit( $user_id, 'membership', $membership_id, 'membership_auto_approved', 'Auto-approved by secure invite for ' . $group->name );
+			self::notify_user_approved( $user_id );
+
+			return self::notice( __( 'Your account was approved automatically. You can now sign in to the private member area.', 'littleworks-of-mercy' ), 'success' );
+		}
+
 		LWorks_Repository::audit( $user_id, 'membership', $membership_id, 'registration_requested', 'Registration requested for ' . $group->name );
 		self::notify_registration_requested( $user_id, $group, $connection_note );
+
+		if ( $auto_approve ) {
+			return self::notice( __( 'Your account was created, but that invitation was no longer available. A coordinator will review your registration.', 'littleworks-of-mercy' ), 'info' );
+		}
 
 		return self::notice( __( 'Your request has been received. A coordinator will review it before you can see the private member area.', 'littleworks-of-mercy' ), 'success' );
 	}
@@ -942,6 +1010,14 @@ class LWorks_Shortcodes {
 	 * @return string
 	 */
 	private static function handle_coordinator_actions() {
+		if ( self::is_post_action( 'lworks_create_invite' ) ) {
+			return self::handle_create_invite();
+		}
+
+		if ( self::is_post_action( 'lworks_revoke_invite' ) ) {
+			return self::handle_revoke_invite();
+		}
+
 		if ( ! self::is_post_action( 'lworks_membership_action' ) ) {
 			return '';
 		}
@@ -974,6 +1050,84 @@ class LWorks_Shortcodes {
 		}
 
 		return '';
+	}
+
+	/**
+	 * Create a secure invite link.
+	 *
+	 * @return string
+	 */
+	private static function handle_create_invite() {
+		if ( ! isset( $_POST['lworks_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['lworks_nonce'] ) ), 'lworks_create_invite' ) ) {
+			return self::notice( __( 'The invite form expired. Please try again.', 'littleworks-of-mercy' ), 'error' );
+		}
+
+		$user_id      = get_current_user_id();
+		$group_id     = isset( $_POST['group_id'] ) ? absint( $_POST['group_id'] ) : 0;
+		$max_uses     = isset( $_POST['max_uses'] ) ? absint( $_POST['max_uses'] ) : 1;
+		$expires_days = isset( $_POST['expires_days'] ) ? absint( $_POST['expires_days'] ) : 14;
+		$email        = isset( $_POST['email_restriction'] ) ? sanitize_email( wp_unslash( $_POST['email_restriction'] ) ) : '';
+		$note         = isset( $_POST['note'] ) ? sanitize_text_field( wp_unslash( $_POST['note'] ) ) : '';
+
+		if ( ! LWorks_Repository::user_can_manage_group( $user_id, $group_id ) ) {
+			return self::notice( __( 'You cannot create invites for that group.', 'littleworks-of-mercy' ), 'error' );
+		}
+
+		if ( ! empty( $_POST['email_restriction'] ) && ! is_email( $email ) ) {
+			return self::notice( __( 'Please enter a valid recipient email address or leave it blank.', 'littleworks-of-mercy' ), 'error' );
+		}
+
+		$registration_url = LWorks_Repository::get_configured_page_url( 'registration_page_id' );
+		if ( ! $registration_url ) {
+			return self::notice( __( 'Set the registration page in littleWORKS settings before creating secure invite links.', 'littleworks-of-mercy' ), 'error' );
+		}
+
+		$max_uses     = max( 1, min( 100, $max_uses ) );
+		$expires_days = max( 1, min( 365, $expires_days ) );
+		$expires_at   = gmdate( 'Y-m-d H:i:s', time() + ( DAY_IN_SECONDS * $expires_days ) );
+		$invite       = LWorks_Repository::create_invite(
+			array(
+				'group_id'           => $group_id,
+				'created_by'         => $user_id,
+				'max_uses'           => $max_uses,
+				'email_restriction'  => $email,
+				'note'               => $note,
+				'expires_at'         => $expires_at,
+			)
+		);
+
+		if ( is_wp_error( $invite ) ) {
+			return self::notice( $invite->get_error_message(), 'error' );
+		}
+
+		self::$generated_invite_url = add_query_arg( 'invite', $invite['token'], $registration_url );
+
+		LWorks_Repository::audit( $user_id, 'invite', $invite['id'], 'invite_created', 'Secure invite created for group ' . $group_id );
+
+		return self::notice( __( 'Invite link created. Copy it below now; the full link is not stored after this page load.', 'littleworks-of-mercy' ), 'success' );
+	}
+
+	/**
+	 * Revoke a secure invite link.
+	 *
+	 * @return string
+	 */
+	private static function handle_revoke_invite() {
+		if ( ! isset( $_POST['lworks_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['lworks_nonce'] ) ), 'lworks_revoke_invite' ) ) {
+			return self::notice( __( 'The invite action expired. Please try again.', 'littleworks-of-mercy' ), 'error' );
+		}
+
+		$invite_id = isset( $_POST['invite_id'] ) ? absint( $_POST['invite_id'] ) : 0;
+		$invite    = LWorks_Repository::get_invite( $invite_id );
+
+		if ( ! $invite || ! LWorks_Repository::user_can_manage_group( get_current_user_id(), $invite->group_id ) ) {
+			return self::notice( __( 'You cannot revoke that invite.', 'littleworks-of-mercy' ), 'error' );
+		}
+
+		LWorks_Repository::revoke_invite( $invite_id, get_current_user_id() );
+		LWorks_Repository::audit( get_current_user_id(), 'invite', $invite_id, 'invite_revoked', '' );
+
+		return self::notice( __( 'Invite link revoked.', 'littleworks-of-mercy' ), 'success' );
 	}
 
 	/**
@@ -1185,6 +1339,140 @@ class LWorks_Shortcodes {
 				</label>
 				<button type="submit" class="lworks-button lworks-button-secondary"><?php esc_html_e( 'Save settings', 'littleworks-of-mercy' ); ?></button>
 			</form>
+		</section>
+		<?php
+	}
+
+	/**
+	 * Render coordinator-managed secure invite links.
+	 *
+	 * @return void
+	 */
+	private static function render_invite_panel() {
+		$user_id   = get_current_user_id();
+		$group_ids = LWorks_Repository::get_managed_group_ids( $user_id );
+
+		if ( empty( $group_ids ) ) {
+			return;
+		}
+
+		$all_groups = LWorks_Repository::get_groups( true );
+		$groups     = array();
+
+		foreach ( $all_groups as $group ) {
+			if ( in_array( (int) $group->id, $group_ids, true ) ) {
+				$groups[] = $group;
+			}
+		}
+
+		if ( empty( $groups ) ) {
+			echo '<section class="lworks-panel lworks-invites">';
+			echo '<h2>' . esc_html__( 'Secure invite links', 'littleworks-of-mercy' ) . '</h2>';
+			echo self::notice( __( 'There are no active groups available for invite links.', 'littleworks-of-mercy' ), 'info' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			echo '</section>';
+			return;
+		}
+
+		$invites = LWorks_Repository::get_invites_for_manager( $user_id );
+		?>
+		<section class="lworks-panel lworks-invites">
+			<h2><?php esc_html_e( 'Secure invite links', 'littleworks-of-mercy' ); ?></h2>
+
+			<?php if ( self::$generated_invite_url ) : ?>
+				<div class="lworks-invite-result">
+					<label>
+						<span><?php esc_html_e( 'Copy this invite link now', 'littleworks-of-mercy' ); ?></span>
+						<input type="url" readonly value="<?php echo esc_attr( self::$generated_invite_url ); ?>">
+					</label>
+					<p class="lworks-meta"><?php esc_html_e( 'For security, only the hashed token is stored. The full link cannot be shown again after you leave this page.', 'littleworks-of-mercy' ); ?></p>
+				</div>
+			<?php endif; ?>
+
+			<form method="post" class="lworks-form lworks-invite-form">
+				<?php wp_nonce_field( 'lworks_create_invite', 'lworks_nonce' ); ?>
+				<input type="hidden" name="lworks_action" value="lworks_create_invite">
+
+				<div class="lworks-grid lworks-grid-2">
+					<label>
+						<span><?php esc_html_e( 'Group', 'littleworks-of-mercy' ); ?></span>
+						<select name="group_id" required>
+							<?php foreach ( $groups as $group ) : ?>
+								<option value="<?php echo esc_attr( $group->id ); ?>"><?php echo esc_html( $group->name ); ?></option>
+							<?php endforeach; ?>
+						</select>
+					</label>
+					<label>
+						<span><?php esc_html_e( 'Recipient email (optional)', 'littleworks-of-mercy' ); ?></span>
+						<input type="email" name="email_restriction" autocomplete="off">
+					</label>
+				</div>
+
+				<div class="lworks-grid lworks-grid-2">
+					<label>
+						<span><?php esc_html_e( 'Maximum signups', 'littleworks-of-mercy' ); ?></span>
+						<input type="number" name="max_uses" min="1" max="100" value="1" required>
+					</label>
+					<label>
+						<span><?php esc_html_e( 'Expires after days', 'littleworks-of-mercy' ); ?></span>
+						<input type="number" name="expires_days" min="1" max="365" value="14" required>
+					</label>
+				</div>
+
+				<label>
+					<span><?php esc_html_e( 'Internal note (optional)', 'littleworks-of-mercy' ); ?></span>
+					<input type="text" name="note" maxlength="191">
+				</label>
+
+				<button type="submit" class="lworks-button"><?php esc_html_e( 'Create invite link', 'littleworks-of-mercy' ); ?></button>
+			</form>
+
+			<?php if ( ! empty( $invites ) ) : ?>
+				<div class="lworks-table-wrap lworks-invite-table-wrap">
+					<table class="lworks-table">
+						<thead>
+							<tr>
+								<th><?php esc_html_e( 'Group', 'littleworks-of-mercy' ); ?></th>
+								<th><?php esc_html_e( 'Status', 'littleworks-of-mercy' ); ?></th>
+								<th><?php esc_html_e( 'Uses', 'littleworks-of-mercy' ); ?></th>
+								<th><?php esc_html_e( 'Expires', 'littleworks-of-mercy' ); ?></th>
+								<th><?php esc_html_e( 'Recipient', 'littleworks-of-mercy' ); ?></th>
+								<th><?php esc_html_e( 'Created', 'littleworks-of-mercy' ); ?></th>
+								<th><?php esc_html_e( 'Action', 'littleworks-of-mercy' ); ?></th>
+							</tr>
+						</thead>
+						<tbody>
+							<?php foreach ( $invites as $invite ) : ?>
+								<?php $status = LWorks_Repository::invite_status( $invite ); ?>
+								<tr>
+									<td>
+										<?php echo esc_html( $invite->group_name ); ?>
+										<?php if ( ! empty( $invite->note ) ) : ?>
+											<p class="lworks-meta"><?php echo esc_html( $invite->note ); ?></p>
+										<?php endif; ?>
+									</td>
+									<td><span class="lworks-status lworks-invite-status-<?php echo esc_attr( $status ); ?>"><?php echo esc_html( self::invite_status_label( $status ) ); ?></span></td>
+									<td><?php echo esc_html( absint( $invite->use_count ) . ' / ' . absint( $invite->max_uses ) ); ?></td>
+									<td><?php echo esc_html( self::format_invite_date( $invite->expires_at ) ); ?></td>
+									<td><?php echo esc_html( $invite->email_restriction ? $invite->email_restriction : '-' ); ?></td>
+									<td><?php echo esc_html( self::format_invite_date( $invite->created_at ) ); ?></td>
+									<td>
+										<?php if ( 'active' === $status ) : ?>
+											<form method="post" class="lworks-inline-form">
+												<?php wp_nonce_field( 'lworks_revoke_invite', 'lworks_nonce' ); ?>
+												<input type="hidden" name="lworks_action" value="lworks_revoke_invite">
+												<input type="hidden" name="invite_id" value="<?php echo esc_attr( $invite->id ); ?>">
+												<button type="submit" class="lworks-button lworks-button-secondary"><?php esc_html_e( 'Revoke', 'littleworks-of-mercy' ); ?></button>
+											</form>
+										<?php else : ?>
+											<span class="lworks-meta"><?php esc_html_e( 'No action', 'littleworks-of-mercy' ); ?></span>
+										<?php endif; ?>
+									</td>
+								</tr>
+							<?php endforeach; ?>
+						</tbody>
+					</table>
+				</div>
+			<?php endif; ?>
 		</section>
 		<?php
 	}
@@ -1414,6 +1702,66 @@ class LWorks_Shortcodes {
 		}
 
 		return array_values( array_unique( $emails ) );
+	}
+
+	/**
+	 * Human-readable invite status label.
+	 *
+	 * @param string $status Invite status.
+	 * @return string
+	 */
+	private static function invite_status_label( $status ) {
+		$labels = array(
+			'active'         => __( 'Active', 'littleworks-of-mercy' ),
+			'used'           => __( 'Used up', 'littleworks-of-mercy' ),
+			'expired'        => __( 'Expired', 'littleworks-of-mercy' ),
+			'revoked'        => __( 'Revoked', 'littleworks-of-mercy' ),
+			'inactive_group' => __( 'Inactive group', 'littleworks-of-mercy' ),
+			'missing'        => __( 'Missing', 'littleworks-of-mercy' ),
+		);
+
+		return isset( $labels[ $status ] ) ? $labels[ $status ] : __( 'Unavailable', 'littleworks-of-mercy' );
+	}
+
+	/**
+	 * Registration-facing message for unusable invite status.
+	 *
+	 * @param string $status Invite status.
+	 * @return string
+	 */
+	private static function invite_status_message( $status ) {
+		if ( 'expired' === $status ) {
+			return __( 'That invite link has expired. Please ask for a new link or submit a regular request for review.', 'littleworks-of-mercy' );
+		}
+
+		if ( 'used' === $status ) {
+			return __( 'That invite link has already been used. Please ask for a new link or submit a regular request for review.', 'littleworks-of-mercy' );
+		}
+
+		if ( 'revoked' === $status ) {
+			return __( 'That invite link was revoked. Please ask for a new link or submit a regular request for review.', 'littleworks-of-mercy' );
+		}
+
+		return __( 'That invite link is no longer available. Please ask for a new link or submit a regular request for review.', 'littleworks-of-mercy' );
+	}
+
+	/**
+	 * Format a GMT invite date for display.
+	 *
+	 * @param string $date Date string.
+	 * @return string
+	 */
+	private static function format_invite_date( $date ) {
+		if ( empty( $date ) ) {
+			return '-';
+		}
+
+		$timestamp = strtotime( $date . ' UTC' );
+		if ( ! $timestamp ) {
+			return '-';
+		}
+
+		return wp_date( get_option( 'date_format' ), $timestamp );
 	}
 
 	/**

@@ -431,6 +431,60 @@
 	line-height: 1.35;
 }
 
+.lworks-invites {
+	display: grid;
+	gap: 1rem;
+}
+
+.lworks-invites h2 {
+	margin-bottom: 0;
+}
+
+.lworks-invite-result {
+	background: #edf8f1;
+	border: 1px solid #b9e2c5;
+	border-radius: 8px;
+	display: grid;
+	gap: 0.55rem;
+	padding: 1rem;
+}
+
+.lworks-invite-result label {
+	display: grid;
+	font-weight: 700;
+	gap: 0.4rem;
+}
+
+.lworks-invite-result input {
+	border: 1px solid var(--lworks-border);
+	border-radius: 6px;
+	font: inherit;
+	min-height: 2.6rem;
+	padding: 0.55rem 0.65rem;
+	width: 100%;
+}
+
+.lworks-invite-form {
+	border-top: 1px solid var(--lworks-border);
+	padding-top: 1rem;
+}
+
+.lworks-invite-table-wrap {
+	margin-top: 0.25rem;
+}
+
+.lworks-invite-status-active {
+	background: #edf8f1;
+	border-color: #b9e2c5;
+}
+
+.lworks-invite-status-expired,
+.lworks-invite-status-revoked,
+.lworks-invite-status-used,
+.lworks-invite-status-inactive_group {
+	background: #eceff3;
+}
+
 .lworks-help {
 	margin-bottom: 0;
 }

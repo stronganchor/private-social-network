@@ -182,6 +182,239 @@ class LWorks_Repository {
 	}
 
 	/**
+	 * Create a secure invite token for a group.
+	 *
+	 * @param array $data Invite data.
+	 * @return array|WP_Error
+	 */
+	public static function create_invite( $data ) {
+		global $wpdb;
+
+		$table    = self::table( 'invites' );
+		$now      = current_time( 'mysql', true );
+		$token    = self::generate_invite_token();
+		$max_uses = isset( $data['max_uses'] ) ? absint( $data['max_uses'] ) : 1;
+		$max_uses = max( 1, min( 100, $max_uses ) );
+
+		$inserted = $wpdb->insert(
+			$table,
+			array(
+				'group_id'          => absint( $data['group_id'] ),
+				'created_by'        => absint( $data['created_by'] ),
+				'token_hash'        => self::hash_invite_token( $token ),
+				'max_uses'          => $max_uses,
+				'use_count'         => 0,
+				'email_restriction' => isset( $data['email_restriction'] ) ? sanitize_email( $data['email_restriction'] ) : '',
+				'note'              => isset( $data['note'] ) ? sanitize_text_field( $data['note'] ) : '',
+				'expires_at'        => isset( $data['expires_at'] ) && $data['expires_at'] ? sanitize_text_field( $data['expires_at'] ) : null,
+				'created_at'        => $now,
+				'updated_at'        => $now,
+			),
+			array( '%d', '%d', '%s', '%d', '%d', '%s', '%s', '%s', '%s', '%s' )
+		);
+
+		if ( ! $inserted ) {
+			return new WP_Error( 'lworks_invite_create_failed', __( 'The invite link could not be created. Please try again.', 'littleworks-of-mercy' ) );
+		}
+
+		return array(
+			'id'    => (int) $wpdb->insert_id,
+			'token' => $token,
+		);
+	}
+
+	/**
+	 * Get an invite by ID with group metadata.
+	 *
+	 * @param int $invite_id Invite ID.
+	 * @return object|null
+	 */
+	public static function get_invite( $invite_id ) {
+		global $wpdb;
+
+		$invites = self::table( 'invites' );
+		$groups  = self::table( 'groups' );
+
+		return $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT i.*, g.name AS group_name, g.active AS group_active
+				FROM {$invites} i
+				INNER JOIN {$groups} g ON g.id = i.group_id
+				WHERE i.id = %d",
+				absint( $invite_id )
+			)
+		);
+	}
+
+	/**
+	 * Get an invite by raw token with group metadata.
+	 *
+	 * @param string $token Raw token.
+	 * @return object|null
+	 */
+	public static function get_invite_by_token( $token ) {
+		global $wpdb;
+
+		$token = self::sanitize_invite_token( $token );
+		if ( '' === $token ) {
+			return null;
+		}
+
+		$invites = self::table( 'invites' );
+		$groups  = self::table( 'groups' );
+
+		return $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT i.*, g.name AS group_name, g.active AS group_active
+				FROM {$invites} i
+				INNER JOIN {$groups} g ON g.id = i.group_id
+				WHERE i.token_hash = %s
+				LIMIT 1",
+				self::hash_invite_token( $token )
+			)
+		);
+	}
+
+	/**
+	 * Get invite rows visible to a manager.
+	 *
+	 * @param int $manager_user_id Manager user ID.
+	 * @param int $limit Limit.
+	 * @return array
+	 */
+	public static function get_invites_for_manager( $manager_user_id, $limit = 25 ) {
+		global $wpdb;
+
+		$group_ids = self::get_managed_group_ids( $manager_user_id );
+		if ( empty( $group_ids ) ) {
+			return array();
+		}
+
+		$invites      = self::table( 'invites' );
+		$groups       = self::table( 'groups' );
+		$users        = $wpdb->users;
+		$limit        = min( 100, max( 1, absint( $limit ) ) );
+		$placeholders = implode( ',', array_fill( 0, count( $group_ids ), '%d' ) );
+		$params       = array_merge( $group_ids, array( $limit ) );
+
+		return $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT i.*, g.name AS group_name, g.active AS group_active, u.display_name AS created_by_name
+				FROM {$invites} i
+				INNER JOIN {$groups} g ON g.id = i.group_id
+				LEFT JOIN {$users} u ON u.ID = i.created_by
+				WHERE i.group_id IN ({$placeholders})
+				ORDER BY i.created_at DESC
+				LIMIT %d",
+				$params
+			)
+		);
+	}
+
+	/**
+	 * Revoke an invite.
+	 *
+	 * @param int $invite_id Invite ID.
+	 * @param int $actor_user_id Actor user ID.
+	 * @return bool
+	 */
+	public static function revoke_invite( $invite_id, $actor_user_id ) {
+		global $wpdb;
+
+		$table = self::table( 'invites' );
+		$now   = current_time( 'mysql', true );
+
+		$result = $wpdb->update(
+			$table,
+			array(
+				'revoked_at' => $now,
+				'revoked_by' => absint( $actor_user_id ),
+				'updated_at' => $now,
+			),
+			array( 'id' => absint( $invite_id ) ),
+			array( '%s', '%d', '%s' ),
+			array( '%d' )
+		);
+
+		return false !== $result;
+	}
+
+	/**
+	 * Record one invite use if it is still available.
+	 *
+	 * @param int $invite_id Invite ID.
+	 * @param int $user_id New user ID.
+	 * @return bool
+	 */
+	public static function use_invite( $invite_id, $user_id ) {
+		global $wpdb;
+
+		$table = self::table( 'invites' );
+		$now   = current_time( 'mysql', true );
+
+		$result = $wpdb->query(
+			$wpdb->prepare(
+				"UPDATE {$table}
+				SET use_count = use_count + 1, used_last_at = %s, updated_at = %s
+				WHERE id = %d
+					AND revoked_at IS NULL
+					AND use_count < max_uses
+					AND (expires_at IS NULL OR expires_at >= %s)",
+				$now,
+				$now,
+				absint( $invite_id ),
+				$now
+			)
+		);
+
+		if ( $result ) {
+			self::audit( absint( $user_id ), 'invite', absint( $invite_id ), 'invite_used', '' );
+		}
+
+		return (bool) $result;
+	}
+
+	/**
+	 * Get a normalized invite status.
+	 *
+	 * @param object $invite Invite row.
+	 * @return string
+	 */
+	public static function invite_status( $invite ) {
+		if ( ! $invite ) {
+			return 'missing';
+		}
+
+		if ( ! empty( $invite->revoked_at ) ) {
+			return 'revoked';
+		}
+
+		if ( empty( $invite->group_active ) ) {
+			return 'inactive_group';
+		}
+
+		if ( ! empty( $invite->expires_at ) && strtotime( $invite->expires_at . ' UTC' ) < current_time( 'timestamp', true ) ) {
+			return 'expired';
+		}
+
+		if ( (int) $invite->use_count >= (int) $invite->max_uses ) {
+			return 'used';
+		}
+
+		return 'active';
+	}
+
+	/**
+	 * Whether an invite can still be used.
+	 *
+	 * @param object $invite Invite row.
+	 * @return bool
+	 */
+	public static function invite_is_usable( $invite ) {
+		return 'active' === self::invite_status( $invite );
+	}
+
+	/**
 	 * Add or update membership.
 	 *
 	 * @param int    $group_id Group ID.
@@ -789,6 +1022,23 @@ class LWorks_Repository {
 	}
 
 	/**
+	 * Generate a secure invite token.
+	 *
+	 * @return string
+	 */
+	public static function generate_invite_token() {
+		if ( function_exists( 'random_bytes' ) ) {
+			try {
+				return bin2hex( random_bytes( 24 ) );
+			} catch ( Exception $e ) {
+				// Fall back to WordPress randomness below.
+			}
+		}
+
+		return wp_generate_password( 48, false, false );
+	}
+
+	/**
 	 * Sanitize invite code.
 	 *
 	 * @param string $code Code.
@@ -796,6 +1046,26 @@ class LWorks_Repository {
 	 */
 	public static function sanitize_invite_code( $code ) {
 		return strtoupper( preg_replace( '/[^A-Z0-9]/', '', sanitize_text_field( wp_unslash( $code ) ) ) );
+	}
+
+	/**
+	 * Sanitize a secure invite token.
+	 *
+	 * @param string $token Raw token.
+	 * @return string
+	 */
+	public static function sanitize_invite_token( $token ) {
+		return preg_replace( '/[^A-Za-z0-9]/', '', sanitize_text_field( wp_unslash( $token ) ) );
+	}
+
+	/**
+	 * Hash an invite token before storage or lookup.
+	 *
+	 * @param string $token Raw token.
+	 * @return string
+	 */
+	public static function hash_invite_token( $token ) {
+		return hash_hmac( 'sha256', self::sanitize_invite_token( $token ), wp_salt( 'auth' ) );
 	}
 
 	/**

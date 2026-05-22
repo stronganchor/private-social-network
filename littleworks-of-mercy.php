@@ -3,7 +3,7 @@
  * Plugin Name: littleWORKS of Mercy
  * Plugin URI: https://github.com/stronganchor/private-social-network
  * Description: Private parish/community request board with approved registrations, group-scoped content, coordinator moderation, and GitHub-hosted updates.
- * Version: 0.3.4
+ * Version: 0.4.0
  * Author: Strong Anchor
  * Requires at least: 6.4
  * Tested up to: 7.0
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'LWORKS_VERSION', '0.3.4' );
+define( 'LWORKS_VERSION', '0.4.0' );
 define( 'LWORKS_PLUGIN_FILE', __FILE__ );
 define( 'LWORKS_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'LWORKS_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
