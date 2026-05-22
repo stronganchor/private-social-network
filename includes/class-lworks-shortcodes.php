@@ -950,12 +950,12 @@ class LWorks_Shortcodes {
 			echo '<article class="lworks-request lworks-card">';
 			echo '<div class="lworks-card-header">';
 			echo '<div>';
-			echo '<p class="lworks-meta">' . esc_html( $request->group_name ) . ' · ' . esc_html( isset( $types[ $request->request_type ] ) ? $types[ $request->request_type ] : $request->request_type ) . '</p>';
+			echo '<p class="lworks-meta">' . esc_html( $request->group_name ) . ' &middot; ' . esc_html( isset( $types[ $request->request_type ] ) ? $types[ $request->request_type ] : $request->request_type ) . '</p>';
 			echo '<h3>' . esc_html( $request->title ) . '</h3>';
 			echo '</div>';
 			echo '<span class="lworks-status lworks-status-' . esc_attr( $request->status ) . '">' . esc_html( isset( $statuses[ $request->status ] ) ? $statuses[ $request->status ] : $request->status ) . '</span>';
 			echo '</div>';
-			echo '<p class="lworks-meta">' . esc_html( $author ? $author->display_name : __( 'Member', 'littleworks-of-mercy' ) ) . ' · ' . esc_html( get_date_from_gmt( $request->created_at, get_option( 'date_format' ) ) ) . '</p>';
+			echo '<p class="lworks-meta">' . esc_html( $author ? $author->display_name : __( 'Member', 'littleworks-of-mercy' ) ) . ' &middot; ' . esc_html( get_date_from_gmt( $request->created_at, get_option( 'date_format' ) ) ) . '</p>';
 			echo '<div class="lworks-content">' . wp_kses_post( wpautop( $request->content ) ) . '</div>';
 
 			self::render_request_responses( $request, isset( $responses[ $request->id ] ) ? $responses[ $request->id ] : array() );

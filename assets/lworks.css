@@ -35,6 +35,17 @@
 	margin-top: 0;
 }
 
+.lworks-panel h2,
+.lworks-feed h2 {
+	font-size: 1.55rem;
+	line-height: 1.2;
+}
+
+.lworks-card h3 {
+	font-size: 1.25rem;
+	line-height: 1.25;
+}
+
 .lworks-grid {
 	display: grid;
 	gap: 1rem;
@@ -69,22 +80,35 @@
 	width: 100%;
 }
 
+.lworks-form input:focus,
+.lworks-form select:focus,
+.lworks-form textarea:focus,
+.lworks-inline-form input:focus,
+.lworks-inline-form select:focus {
+	border-color: var(--lworks-primary);
+	box-shadow: 0 0 0 3px rgba(47, 111, 115, 0.16);
+	outline: 0;
+}
+
 .lworks-form textarea {
 	min-height: 8rem;
 	resize: vertical;
 }
 
-.lworks-checkbox {
+.lworks-form .lworks-checkbox {
 	align-items: flex-start;
 	display: flex;
 	font-weight: 500;
 	gap: 0.6rem;
+	justify-content: flex-start;
 }
 
-.lworks-checkbox input {
+.lworks-form .lworks-checkbox input[type="checkbox"] {
+	accent-color: var(--lworks-primary);
 	flex: 0 0 auto;
 	margin-top: 0.25rem;
 	min-height: auto;
+	padding: 0;
 	width: auto;
 }
 
@@ -99,15 +123,23 @@
 	font: inherit;
 	font-weight: 700;
 	justify-content: center;
+	line-height: 1.15;
 	min-height: 2.6rem;
 	padding: 0.55rem 0.85rem;
 	text-decoration: none;
+	white-space: nowrap;
 }
 
 .lworks-button:hover,
 .lworks-button:focus {
 	background: var(--lworks-primary-dark);
 	color: #ffffff;
+}
+
+.lworks-button:focus-visible {
+	box-shadow: 0 0 0 3px rgba(47, 111, 115, 0.22);
+	outline: 2px solid transparent;
+	outline-offset: 2px;
 }
 
 .lworks-button-secondary {
@@ -237,10 +269,47 @@
 	flex: 1 1 24rem;
 }
 
+.lworks-help-form input {
+	flex: 1 1 14rem;
+	min-width: 12rem;
+}
+
+.lworks-help-form .lworks-button,
+.lworks-response-controls > .lworks-inline-form:first-child .lworks-button {
+	flex: 0 0 auto;
+	min-width: 7.75rem;
+}
+
 .lworks-status-form {
+	align-items: flex-end;
 	border-top: 1px solid var(--lworks-border);
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.65rem;
 	margin-top: 1rem;
 	padding-top: 1rem;
+}
+
+.lworks-status-form label {
+	flex: 0 1 16rem;
+}
+
+.lworks-status-form select {
+	min-width: 13rem;
+}
+
+.lworks-status-form .lworks-button {
+	flex: 0 0 auto;
+	min-width: 6.5rem;
+}
+
+.lworks-preferences .lworks-button {
+	justify-self: start;
+	min-width: 10rem;
+}
+
+.lworks-preferences .lworks-checkbox span {
+	line-height: 1.35;
 }
 
 .lworks-help {

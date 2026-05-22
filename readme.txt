@@ -4,7 +4,7 @@ Tags: private community, parish, charity, members, requests
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.3.1
+Stable tag: 0.3.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -47,6 +47,11 @@ This plugin uses Plugin Update Checker and checks `https://github.com/stronganch
 For a private GitHub repository, define `LWORKS_GITHUB_TOKEN` in `wp-config.php` or provide a token through the `lworks_github_token` filter.
 
 == Changelog ==
+
+= 0.3.2 =
+* Polished member dashboard controls for cleaner checkbox, response, and status form alignment.
+* Changed the responding request status label to "Someone responded".
+* Improved compact heading sizes, button wrapping, focus states, and request metadata separators.
 
 = 0.3.1 =
 * Added `[lworks_member_links]` for session-aware public/member navigation.

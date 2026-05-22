@@ -822,7 +822,7 @@ class LWorks_Repository {
 	public static function request_statuses() {
 		return array(
 			'open'       => __( 'Open', 'littleworks-of-mercy' ),
-			'responding' => __( 'Someone responding', 'littleworks-of-mercy' ),
+			'responding' => __( 'Someone responded', 'littleworks-of-mercy' ),
 			'fulfilled'  => __( 'Fulfilled', 'littleworks-of-mercy' ),
 			'closed'     => __( 'Closed', 'littleworks-of-mercy' ),
 		);
