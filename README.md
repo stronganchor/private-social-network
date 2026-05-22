@@ -13,6 +13,7 @@ WordPress plugin for a private, approval-based parish/community request board.
 - Gives coordinators a roster for the groups they manage.
 - Adds admin audit-log visibility.
 - Adds built-in registration anti-spam checks plus optional hCaptcha/reCAPTCHA settings.
+- Lets coordinators create and email secure invite links for automatic group approval.
 - Extends remember-me sessions through plugin settings, with a shorter default for coordinators/admins.
 - Uses Plugin Update Checker for GitHub-hosted updates.
 

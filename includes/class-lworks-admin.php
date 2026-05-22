@@ -691,6 +691,6 @@ class LWorks_Admin {
 		$subject = __( 'Your littleWORKS account was approved', 'littleworks-of-mercy' );
 		$body    = __( 'Your account was approved. You can now log in to the private member area.', 'littleworks-of-mercy' ) . "\n\n" . LWorks_Repository::get_page_url( 'dashboard_page_id' );
 
-		wp_mail( $user->user_email, $subject, $body );
+		LWorks_Email::send( $user->user_email, $subject, $body );
 	}
 }

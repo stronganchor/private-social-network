@@ -1102,6 +1102,11 @@ class LWorks_Shortcodes {
 			return self::notice( __( 'You cannot create invites for that group.', 'littleworks-of-mercy' ), 'error' );
 		}
 
+		$group = LWorks_Repository::get_group( $group_id );
+		if ( ! $group || ! (int) $group->active ) {
+			return self::notice( __( 'Please choose an active group for this invite.', 'littleworks-of-mercy' ), 'error' );
+		}
+
 		if ( ! empty( $_POST['email_restriction'] ) && ! is_email( $email ) ) {
 			return self::notice( __( 'Please enter a valid recipient email address or leave it blank.', 'littleworks-of-mercy' ), 'error' );
 		}
@@ -1132,6 +1137,17 @@ class LWorks_Shortcodes {
 		self::$generated_invite_url = add_query_arg( 'invite', $invite['token'], $registration_url );
 
 		LWorks_Repository::audit( $user_id, 'invite', $invite['id'], 'invite_created', 'Secure invite created for group ' . $group_id );
+
+		if ( $email ) {
+			$email_sent = self::notify_invite_recipient( $email, $group, self::$generated_invite_url, $expires_at, $max_uses );
+			LWorks_Repository::audit( $user_id, 'invite', $invite['id'], $email_sent ? 'invite_email_sent' : 'invite_email_failed', $email );
+
+			if ( $email_sent ) {
+				return self::notice( __( 'Invite link created and emailed to the recipient. Copy it below as a backup; the full link is not stored after this page load.', 'littleworks-of-mercy' ), 'success' );
+			}
+
+			return self::notice( __( 'Invite link created, but WordPress could not send the email. Copy the link below and send it manually.', 'littleworks-of-mercy' ), 'error' );
+		}
 
 		return self::notice( __( 'Invite link created. Copy it below now; the full link is not stored after this page load.', 'littleworks-of-mercy' ), 'success' );
 	}
@@ -1433,6 +1449,7 @@ class LWorks_Shortcodes {
 					<label>
 						<span><?php esc_html_e( 'Recipient email (optional)', 'littleworks-of-mercy' ); ?></span>
 						<input type="email" name="email_restriction" autocomplete="off">
+						<span class="lworks-meta"><?php esc_html_e( 'If entered, the invite link will be emailed to this address and only this address can use it.', 'littleworks-of-mercy' ); ?></span>
 					</label>
 				</div>
 
@@ -1568,6 +1585,39 @@ class LWorks_Shortcodes {
 	}
 
 	/**
+	 * Email a secure invite link to its recipient.
+	 *
+	 * @param string $email Recipient email.
+	 * @param object $group Group row.
+	 * @param string $invite_url Full invite URL.
+	 * @param string $expires_at Expiration date in GMT.
+	 * @param int    $max_uses Maximum allowed uses.
+	 * @return bool
+	 */
+	private static function notify_invite_recipient( $email, $group, $invite_url, $expires_at, $max_uses ) {
+		$expires = self::format_invite_date( $expires_at );
+		$subject = sprintf(
+			/* translators: %s: group name. */
+			__( 'Your littleWORKS invitation for %s', 'littleworks-of-mercy' ),
+			$group->name
+		);
+
+		$body = sprintf(
+			/* translators: 1: group name, 2: invite URL, 3: expiration date, 4: maximum uses. */
+			__(
+				"You have been invited to join the private littleWORKS member area for %1\$s.\n\nUse this secure link to create your account:\n%2\$s\n\nThis invitation expires on %3\$s and can be used %4\$d time(s).\n\nIf you were not expecting this invitation, you can ignore this email.",
+				'littleworks-of-mercy'
+			),
+			$group->name,
+			$invite_url,
+			$expires,
+			absint( $max_uses )
+		);
+
+		return LWorks_Email::send( $email, $subject, $body );
+	}
+
+	/**
 	 * Notify coordinators/site admin of new registration.
 	 *
 	 * @param int    $user_id User ID.
@@ -1603,7 +1653,7 @@ class LWorks_Shortcodes {
 			$connection_note
 		);
 
-		wp_mail( $recipients, $subject, $body );
+		LWorks_Email::send( $recipients, $subject, $body );
 	}
 
 	/**
@@ -1626,7 +1676,7 @@ class LWorks_Shortcodes {
 		$subject = __( 'New littleWORKS request in your group', 'littleworks-of-mercy' );
 		$body    = __( 'A new private request has been posted in one of your littleWORKS groups. Please log in to view it.', 'littleworks-of-mercy' ) . "\n\n" . LWorks_Repository::get_page_url( 'dashboard_page_id' );
 
-		wp_mail( $recipients, $subject, $body );
+		LWorks_Email::send( $recipients, $subject, $body );
 	}
 
 	/**
@@ -1650,7 +1700,7 @@ class LWorks_Shortcodes {
 		$subject = __( 'Someone responded to your littleWORKS request', 'littleworks-of-mercy' );
 		$body    = __( 'Someone responded to your private request. Please log in to view the response.', 'littleworks-of-mercy' ) . "\n\n" . LWorks_Repository::get_page_url( 'dashboard_page_id' );
 
-		wp_mail( $user->user_email, $subject, $body );
+		LWorks_Email::send( $user->user_email, $subject, $body );
 	}
 
 	/**
@@ -1668,7 +1718,7 @@ class LWorks_Shortcodes {
 		$subject = __( 'Your littleWORKS account was approved', 'littleworks-of-mercy' );
 		$body    = __( 'Your account was approved. You can now log in to the private member area.', 'littleworks-of-mercy' ) . "\n\n" . LWorks_Repository::get_page_url( 'dashboard_page_id' );
 
-		wp_mail( $user->user_email, $subject, $body );
+		LWorks_Email::send( $user->user_email, $subject, $body );
 	}
 
 	/**

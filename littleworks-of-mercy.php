@@ -3,7 +3,7 @@
  * Plugin Name: littleWORKS of Mercy
  * Plugin URI: https://github.com/stronganchor/private-social-network
  * Description: Private parish/community request board with approved registrations, group-scoped content, coordinator moderation, and GitHub-hosted updates.
- * Version: 0.4.1
+ * Version: 0.4.2
  * Author: Strong Anchor
  * Requires at least: 6.4
  * Tested up to: 7.0
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'LWORKS_VERSION', '0.4.1' );
+define( 'LWORKS_VERSION', '0.4.2' );
 define( 'LWORKS_PLUGIN_FILE', __FILE__ );
 define( 'LWORKS_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'LWORKS_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
@@ -35,6 +35,7 @@ if ( file_exists( $lworks_autoloader ) ) {
 
 require_once LWORKS_PLUGIN_DIR . 'includes/class-lworks-activator.php';
 require_once LWORKS_PLUGIN_DIR . 'includes/class-lworks-repository.php';
+require_once LWORKS_PLUGIN_DIR . 'includes/class-lworks-email.php';
 require_once LWORKS_PLUGIN_DIR . 'includes/class-lworks-shortcodes.php';
 require_once LWORKS_PLUGIN_DIR . 'includes/class-lworks-admin.php';
 require_once LWORKS_PLUGIN_DIR . 'includes/class-lworks-update-checker.php';
