@@ -284,6 +284,30 @@ class LWorks_Admin {
 					</td>
 				</tr>
 				<tr>
+					<th scope="row"><label for="registration_min_seconds"><?php esc_html_e( 'Minimum signup seconds', 'littleworks-of-mercy' ); ?></label></th>
+					<td><input type="number" min="0" max="3600" id="registration_min_seconds" name="registration_min_seconds" value="<?php echo esc_attr( absint( $settings['registration_min_seconds'] ) ); ?>"></td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="registration_max_seconds"><?php esc_html_e( 'Maximum signup seconds', 'littleworks-of-mercy' ); ?></label></th>
+					<td><input type="number" min="60" max="604800" id="registration_max_seconds" name="registration_max_seconds" value="<?php echo esc_attr( absint( $settings['registration_max_seconds'] ) ); ?>"></td>
+				</tr>
+				<tr>
+					<th scope="row"><?php esc_html_e( 'hCaptcha', 'littleworks-of-mercy' ); ?></th>
+					<td>
+						<label><input type="checkbox" name="enable_hcaptcha" value="1" <?php checked( ! empty( $settings['enable_hcaptcha'] ) ); ?>> <?php esc_html_e( 'Enable hCaptcha on registration', 'littleworks-of-mercy' ); ?></label>
+						<p><input type="text" class="regular-text" name="hcaptcha_site_key" placeholder="<?php esc_attr_e( 'Site key', 'littleworks-of-mercy' ); ?>" value="<?php echo esc_attr( $settings['hcaptcha_site_key'] ); ?>"></p>
+						<p><input type="password" class="regular-text" name="hcaptcha_secret_key" placeholder="<?php esc_attr_e( 'Secret key', 'littleworks-of-mercy' ); ?>" value="<?php echo esc_attr( $settings['hcaptcha_secret_key'] ); ?>"></p>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><?php esc_html_e( 'Google reCAPTCHA', 'littleworks-of-mercy' ); ?></th>
+					<td>
+						<label><input type="checkbox" name="enable_recaptcha" value="1" <?php checked( ! empty( $settings['enable_recaptcha'] ) ); ?>> <?php esc_html_e( 'Enable reCAPTCHA v2 checkbox on registration', 'littleworks-of-mercy' ); ?></label>
+						<p><input type="text" class="regular-text" name="recaptcha_site_key" placeholder="<?php esc_attr_e( 'Site key', 'littleworks-of-mercy' ); ?>" value="<?php echo esc_attr( $settings['recaptcha_site_key'] ); ?>"></p>
+						<p><input type="password" class="regular-text" name="recaptcha_secret_key" placeholder="<?php esc_attr_e( 'Secret key', 'littleworks-of-mercy' ); ?>" value="<?php echo esc_attr( $settings['recaptcha_secret_key'] ); ?>"></p>
+					</td>
+				</tr>
+				<tr>
 					<th scope="row"><label for="member_remember_days"><?php esc_html_e( 'Member remember-me days', 'littleworks-of-mercy' ); ?></label></th>
 					<td><input type="number" min="1" max="3650" id="member_remember_days" name="member_remember_days" value="<?php echo esc_attr( absint( $settings['member_remember_days'] ) ); ?>"></td>
 				</tr>
@@ -444,6 +468,14 @@ class LWorks_Admin {
 		LWorks_Repository::save_settings(
 			array(
 				'require_invite_code' => isset( $_POST['require_invite_code'] ) ? 1 : 0,
+				'registration_min_seconds' => isset( $_POST['registration_min_seconds'] ) ? min( 3600, max( 0, absint( $_POST['registration_min_seconds'] ) ) ) : 4,
+				'registration_max_seconds' => isset( $_POST['registration_max_seconds'] ) ? min( 604800, max( 60, absint( $_POST['registration_max_seconds'] ) ) ) : 86400,
+				'enable_hcaptcha'    => isset( $_POST['enable_hcaptcha'] ) ? 1 : 0,
+				'hcaptcha_site_key'  => isset( $_POST['hcaptcha_site_key'] ) ? sanitize_text_field( wp_unslash( $_POST['hcaptcha_site_key'] ) ) : '',
+				'hcaptcha_secret_key' => isset( $_POST['hcaptcha_secret_key'] ) ? sanitize_text_field( wp_unslash( $_POST['hcaptcha_secret_key'] ) ) : '',
+				'enable_recaptcha'   => isset( $_POST['enable_recaptcha'] ) ? 1 : 0,
+				'recaptcha_site_key' => isset( $_POST['recaptcha_site_key'] ) ? sanitize_text_field( wp_unslash( $_POST['recaptcha_site_key'] ) ) : '',
+				'recaptcha_secret_key' => isset( $_POST['recaptcha_secret_key'] ) ? sanitize_text_field( wp_unslash( $_POST['recaptcha_secret_key'] ) ) : '',
 				'member_remember_days' => isset( $_POST['member_remember_days'] ) ? min( 3650, max( 1, absint( $_POST['member_remember_days'] ) ) ) : 180,
 				'staff_remember_days'  => isset( $_POST['staff_remember_days'] ) ? min( 3650, max( 1, absint( $_POST['staff_remember_days'] ) ) ) : 30,
 				'notification_email'   => isset( $_POST['notification_email'] ) ? sanitize_email( wp_unslash( $_POST['notification_email'] ) ) : get_option( 'admin_email' ),

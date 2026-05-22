@@ -4,7 +4,7 @@ Tags: private community, parish, charity, members, requests
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.2.0
+Stable tag: 0.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -45,6 +45,11 @@ This plugin uses Plugin Update Checker and checks `https://github.com/stronganch
 For a private GitHub repository, define `LWORKS_GITHUB_TOKEN` in `wp-config.php` or provide a token through the `lworks_github_token` filter.
 
 == Changelog ==
+
+= 0.3.0 =
+* Added registration honeypot and signed form-age anti-spam checks.
+* Added optional hCaptcha and Google reCAPTCHA v2 settings.
+* Added `lworks_registration_antispam_fields` and `lworks_registration_antispam_result` hooks for custom anti-spam integrations.
 
 = 0.2.0 =
 * Added registration-page invite links and invite-code prefill.

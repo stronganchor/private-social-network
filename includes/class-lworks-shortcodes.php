@@ -40,6 +40,7 @@ class LWorks_Shortcodes {
 		$message             = '';
 		$prefill_invite_code = isset( $_GET['invite'] ) ? LWorks_Repository::sanitize_invite_code( wp_unslash( $_GET['invite'] ) ) : '';
 		$prefill_group       = $prefill_invite_code ? LWorks_Repository::get_group_by_invite_code( $prefill_invite_code ) : null;
+		$settings            = LWorks_Repository::settings();
 
 		if ( self::is_post_action( 'lworks_register' ) ) {
 			$message = self::handle_registration();
@@ -59,6 +60,7 @@ class LWorks_Shortcodes {
 		<form method="post" class="lworks-form">
 			<?php wp_nonce_field( 'lworks_register', 'lworks_nonce' ); ?>
 			<input type="hidden" name="lworks_action" value="lworks_register">
+			<?php self::render_registration_antispam_fields( $settings ); ?>
 
 			<div class="lworks-grid lworks-grid-2">
 				<label>
@@ -287,6 +289,180 @@ class LWorks_Shortcodes {
 	}
 
 	/**
+	 * Render built-in registration anti-spam fields and optional captcha widgets.
+	 *
+	 * @param array $settings Plugin settings.
+	 * @return void
+	 */
+	private static function render_registration_antispam_fields( $settings ) {
+		$started_at = time();
+		$token      = self::registration_form_token( $started_at );
+
+		echo '<input type="hidden" name="lworks_started_at" value="' . esc_attr( $started_at ) . '">';
+		echo '<input type="hidden" name="lworks_form_token" value="' . esc_attr( $token ) . '">';
+		echo '<label class="lworks-honeypot" aria-hidden="true" tabindex="-1"><span>' . esc_html__( 'Website', 'littleworks-of-mercy' ) . '</span><input type="text" name="lworks_website" value="" autocomplete="off" tabindex="-1"></label>';
+
+		if ( ! empty( $settings['enable_hcaptcha'] ) && ! empty( $settings['hcaptcha_site_key'] ) ) {
+			echo '<div class="h-captcha" data-sitekey="' . esc_attr( $settings['hcaptcha_site_key'] ) . '"></div>';
+			wp_enqueue_script( 'lworks-hcaptcha', 'https://js.hcaptcha.com/1/api.js', array(), null, true );
+		}
+
+		if ( ! empty( $settings['enable_recaptcha'] ) && ! empty( $settings['recaptcha_site_key'] ) ) {
+			echo '<div class="g-recaptcha" data-sitekey="' . esc_attr( $settings['recaptcha_site_key'] ) . '"></div>';
+			wp_enqueue_script( 'lworks-recaptcha', 'https://www.google.com/recaptcha/api.js', array(), null, true );
+		}
+
+		do_action( 'lworks_registration_antispam_fields', $settings );
+	}
+
+	/**
+	 * Validate built-in registration anti-spam controls and optional captcha.
+	 *
+	 * @return true|WP_Error
+	 */
+	private static function validate_registration_antispam() {
+		$settings   = LWorks_Repository::settings();
+		$started_at = isset( $_POST['lworks_started_at'] ) ? absint( $_POST['lworks_started_at'] ) : 0;
+		$token      = isset( $_POST['lworks_form_token'] ) ? sanitize_text_field( wp_unslash( $_POST['lworks_form_token'] ) ) : '';
+		$honeypot   = isset( $_POST['lworks_website'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['lworks_website'] ) ) ) : '';
+
+		if ( '' !== $honeypot ) {
+			return new WP_Error( 'lworks_spam_honeypot', __( 'Registration could not be accepted. Please try again.', 'littleworks-of-mercy' ) );
+		}
+
+		if ( ! $started_at || ! hash_equals( self::registration_form_token( $started_at ), $token ) ) {
+			return new WP_Error( 'lworks_spam_token', __( 'The registration form expired. Please reload the page and try again.', 'littleworks-of-mercy' ) );
+		}
+
+		$elapsed     = time() - $started_at;
+		$min_seconds = isset( $settings['registration_min_seconds'] ) ? absint( $settings['registration_min_seconds'] ) : 4;
+		$max_seconds = isset( $settings['registration_max_seconds'] ) ? absint( $settings['registration_max_seconds'] ) : DAY_IN_SECONDS;
+
+		if ( $min_seconds && $elapsed < $min_seconds ) {
+			return new WP_Error( 'lworks_spam_fast_submit', __( 'Registration was submitted too quickly. Please try again.', 'littleworks-of-mercy' ) );
+		}
+
+		if ( $max_seconds && $elapsed > $max_seconds ) {
+			return new WP_Error( 'lworks_spam_stale_submit', __( 'The registration form expired. Please reload the page and try again.', 'littleworks-of-mercy' ) );
+		}
+
+		if ( ! empty( $settings['enable_hcaptcha'] ) ) {
+			$hcaptcha = self::verify_hcaptcha( $settings );
+			if ( is_wp_error( $hcaptcha ) ) {
+				return $hcaptcha;
+			}
+		}
+
+		if ( ! empty( $settings['enable_recaptcha'] ) ) {
+			$recaptcha = self::verify_recaptcha( $settings );
+			if ( is_wp_error( $recaptcha ) ) {
+				return $recaptcha;
+			}
+		}
+
+		$result = apply_filters( 'lworks_registration_antispam_result', true, $_POST, $settings );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		if ( false === $result ) {
+			return new WP_Error( 'lworks_spam_filter', __( 'Registration could not be accepted. Please try again.', 'littleworks-of-mercy' ) );
+		}
+
+		return true;
+	}
+
+	/**
+	 * Build a signed registration form token.
+	 *
+	 * @param int $started_at Timestamp.
+	 * @return string
+	 */
+	private static function registration_form_token( $started_at ) {
+		return wp_hash( 'lworks_register|' . absint( $started_at ) );
+	}
+
+	/**
+	 * Verify hCaptcha.
+	 *
+	 * @param array $settings Plugin settings.
+	 * @return true|WP_Error
+	 */
+	private static function verify_hcaptcha( $settings ) {
+		$response = isset( $_POST['h-captcha-response'] ) ? sanitize_text_field( wp_unslash( $_POST['h-captcha-response'] ) ) : '';
+
+		return self::verify_captcha_response(
+			$response,
+			isset( $settings['hcaptcha_secret_key'] ) ? $settings['hcaptcha_secret_key'] : '',
+			'https://hcaptcha.com/siteverify'
+		);
+	}
+
+	/**
+	 * Verify Google reCAPTCHA v2.
+	 *
+	 * @param array $settings Plugin settings.
+	 * @return true|WP_Error
+	 */
+	private static function verify_recaptcha( $settings ) {
+		$response = isset( $_POST['g-recaptcha-response'] ) ? sanitize_text_field( wp_unslash( $_POST['g-recaptcha-response'] ) ) : '';
+
+		return self::verify_captcha_response(
+			$response,
+			isset( $settings['recaptcha_secret_key'] ) ? $settings['recaptcha_secret_key'] : '',
+			'https://www.google.com/recaptcha/api/siteverify'
+		);
+	}
+
+	/**
+	 * Verify a captcha service response.
+	 *
+	 * @param string $response Token from browser.
+	 * @param string $secret Secret key.
+	 * @param string $endpoint Verification endpoint.
+	 * @return true|WP_Error
+	 */
+	private static function verify_captcha_response( $response, $secret, $endpoint ) {
+		if ( '' === $secret || '' === $response ) {
+			return new WP_Error( 'lworks_captcha_missing', __( 'Please complete the captcha challenge.', 'littleworks-of-mercy' ) );
+		}
+
+		$remote = wp_remote_post(
+			$endpoint,
+			array(
+				'timeout' => 10,
+				'body'    => array(
+					'secret'   => $secret,
+					'response' => $response,
+					'remoteip' => self::remote_ip(),
+				),
+			)
+		);
+
+		if ( is_wp_error( $remote ) ) {
+			return new WP_Error( 'lworks_captcha_unavailable', __( 'Captcha verification is temporarily unavailable. Please try again.', 'littleworks-of-mercy' ) );
+		}
+
+		$data = json_decode( wp_remote_retrieve_body( $remote ), true );
+		if ( empty( $data['success'] ) ) {
+			return new WP_Error( 'lworks_captcha_failed', __( 'Captcha verification failed. Please try again.', 'littleworks-of-mercy' ) );
+		}
+
+		return true;
+	}
+
+	/**
+	 * Best-effort remote IP for captcha verification.
+	 *
+	 * @return string
+	 */
+	private static function remote_ip() {
+		$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
+
+		return filter_var( $ip, FILTER_VALIDATE_IP ) ? $ip : '';
+	}
+
+	/**
 	 * Handle registration submission.
 	 *
 	 * @return string
@@ -294,6 +470,11 @@ class LWorks_Shortcodes {
 	private static function handle_registration() {
 		if ( ! isset( $_POST['lworks_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['lworks_nonce'] ) ), 'lworks_register' ) ) {
 			return self::notice( __( 'The registration form expired. Please try again.', 'littleworks-of-mercy' ), 'error' );
+		}
+
+		$spam_error = self::validate_registration_antispam();
+		if ( is_wp_error( $spam_error ) ) {
+			return self::notice( $spam_error->get_error_message(), 'error' );
 		}
 
 		$settings         = LWorks_Repository::settings();

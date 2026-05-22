@@ -30,6 +30,14 @@ class LWorks_Repository {
 	public static function default_settings() {
 		return array(
 			'require_invite_code' => 0,
+			'registration_min_seconds' => 4,
+			'registration_max_seconds' => 86400,
+			'enable_hcaptcha'    => 0,
+			'hcaptcha_site_key'  => '',
+			'hcaptcha_secret_key' => '',
+			'enable_recaptcha'   => 0,
+			'recaptcha_site_key' => '',
+			'recaptcha_secret_key' => '',
 			'member_remember_days' => 180,
 			'staff_remember_days'  => 30,
 			'notification_email'   => get_option( 'admin_email' ),

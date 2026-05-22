@@ -12,6 +12,7 @@ WordPress plugin for a private, approval-based parish/community request board.
 - Lets members control new-request and response email notifications.
 - Gives coordinators a roster for the groups they manage.
 - Adds admin audit-log visibility.
+- Adds built-in registration anti-spam checks plus optional hCaptcha/reCAPTCHA settings.
 - Extends remember-me sessions through plugin settings, with a shorter default for coordinators/admins.
 - Uses Plugin Update Checker for GitHub-hosted updates.
 
@@ -58,6 +59,12 @@ To release a version:
 5. Add existing WordPress users as group coordinators from **littleWORKS > Groups**.
 
 Group invite links are shown under **littleWORKS > Groups** after the registration page is selected.
+
+## Registration Anti-Spam
+
+The registration form includes a hidden honeypot field and signed form-age checks. Admins can also enable hCaptcha or Google reCAPTCHA v2 from **littleWORKS > Settings** after adding the provider keys.
+
+Developers can add custom anti-spam fields with the `lworks_registration_antispam_fields` action and reject submissions with the `lworks_registration_antispam_result` filter.
 
 ## Privacy Notes
 
