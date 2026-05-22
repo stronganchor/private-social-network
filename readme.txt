@@ -4,7 +4,7 @@ Tags: private community, parish, charity, members, requests
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.3.3
+Stable tag: 0.3.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -47,6 +47,10 @@ This plugin uses Plugin Update Checker and checks `https://github.com/stronganch
 For a private GitHub repository, define `LWORKS_GITHUB_TOKEN` in `wp-config.php` or provide a token through the `lworks_github_token` filter.
 
 == Changelog ==
+
+= 0.3.4 =
+* Enqueued frontend styles in the page head when littleWORKS shortcodes are present.
+* Hardened member buttons against theme button styling bleed-through.
 
 = 0.3.3 =
 * Added member dashboard navigation with homepage, dashboard, staff-only coordinator, and sign-out links.

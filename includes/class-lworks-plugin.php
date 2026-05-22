@@ -47,6 +47,10 @@ class LWorks_Plugin {
 			array(),
 			LWORKS_VERSION
 		);
+
+		if ( self::page_has_frontend_shortcode() ) {
+			self::use_frontend_assets();
+		}
 	}
 
 	/**
@@ -103,5 +107,39 @@ class LWorks_Plugin {
 	 */
 	public static function use_frontend_assets() {
 		wp_enqueue_style( 'lworks-frontend' );
+	}
+
+	/**
+	 * Check whether the queried page contains a littleWORKS frontend shortcode.
+	 *
+	 * @return bool
+	 */
+	private static function page_has_frontend_shortcode() {
+		if ( is_admin() || ! is_singular() ) {
+			return false;
+		}
+
+		$post = get_post();
+		if ( ! $post instanceof WP_Post || empty( $post->post_content ) ) {
+			return false;
+		}
+
+		$shortcodes = array(
+			'lworks_registration',
+			'lworks_member_links',
+			'lworks_login',
+			'lworks_dashboard',
+			'lworks_request_board',
+			'lworks_coordinator',
+			'lworks_profile',
+		);
+
+		foreach ( $shortcodes as $shortcode ) {
+			if ( has_shortcode( $post->post_content, $shortcode ) ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 }
