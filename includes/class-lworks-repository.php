@@ -707,13 +707,16 @@ class LWorks_Repository {
 			return array_map( 'intval', wp_list_pluck( $groups, 'id' ) );
 		}
 
-		$table = self::table( 'group_members' );
+		$table  = self::table( 'group_members' );
+		$groups = self::table( 'groups' );
 
 		return array_map(
 			'intval',
 			$wpdb->get_col(
 				$wpdb->prepare(
-					"SELECT group_id FROM {$table} WHERE user_id = %d AND status = 'active' AND member_role = 'coordinator'",
+					"SELECT m.group_id FROM {$table} m
+					INNER JOIN {$groups} g ON g.id = m.group_id
+					WHERE m.user_id = %d AND m.status = 'active' AND m.member_role = 'coordinator' AND g.active = 1",
 					absint( $user_id )
 				)
 			)
@@ -732,6 +735,11 @@ class LWorks_Repository {
 			return true;
 		}
 
+		$group = self::get_group( $group_id );
+		if ( ! $group || ! (int) $group->active ) {
+			return false;
+		}
+
 		$membership = self::get_membership_for_user_group( $user_id, $group_id );
 
 		return $membership && 'active' === $membership->status;
@@ -747,6 +755,11 @@ class LWorks_Repository {
 	public static function user_can_manage_group( $user_id, $group_id ) {
 		if ( current_user_can( LWORKS_CAP_MANAGE_ALL ) ) {
 			return true;
+		}
+
+		$group = self::get_group( $group_id );
+		if ( ! $group || ! (int) $group->active ) {
+			return false;
 		}
 
 		$membership = self::get_membership_for_user_group( $user_id, $group_id );

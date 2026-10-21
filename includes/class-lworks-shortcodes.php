@@ -1000,7 +1000,9 @@ class LWorks_Shortcodes {
 		}
 
 		$can_update = ( (int) $request->user_id === $user_id ) || LWorks_Repository::user_can_manage_group( $user_id, $request->group_id );
-		if ( ! $can_update ) {
+		$group      = LWorks_Repository::get_group( $request->group_id );
+		$group_open = current_user_can( LWORKS_CAP_MANAGE_ALL ) || ( $group && (int) $group->active );
+		if ( ! $can_update || ! $group_open ) {
 			return self::notice( __( 'You cannot update that request.', 'littleworks-of-mercy' ), 'error' );
 		}
 
