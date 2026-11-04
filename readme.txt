@@ -4,7 +4,7 @@ Tags: private community, parish, charity, members, requests
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.4.3
+Stable tag: 0.4.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -47,6 +47,10 @@ This plugin uses Plugin Update Checker and checks `https://github.com/stronganch
 For a private GitHub repository, define `LWORKS_GITHUB_TOKEN` in `wp-config.php` or provide a token through the `lworks_github_token` filter.
 
 == Changelog ==
+
+= 0.4.4 =
+* Added atomic per-IP and site-wide public signup attempt limits, shared by normal and invite registrations, with bounded input and fail-closed persistence.
+* Bounded public registration staff mail to five recipients per accepted signup; large coordinator rosters retain the configured notification contact first.
 
 = 0.4.3 =
 * Enforced disabled-group access restrictions for members and coordinators, including stale form submissions and coordinator rosters.

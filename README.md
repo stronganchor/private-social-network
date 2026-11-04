@@ -66,6 +66,14 @@ Group invite links are shown under **littleWORKS > Groups** after the registrati
 
 The registration form includes a hidden honeypot field and signed form-age checks. Admins can also enable hCaptcha or Google reCAPTCHA v2 from **littleWORKS > Settings** after adding the provider keys.
 
+Public signup attempts, including invite registrations, are limited to **5 per socket IP per hour, 20 per IP per day, 30 site-wide per hour, and 100 site-wide per day**. These are fixed UTC hour/day windows. Attempts are charged before CAPTCHA or password/account work and are not refunded when validation or account creation fails. Shared networks therefore share an allowance; forwarded IP headers are deliberately ignored. Input is limited to 32 KiB with smaller field limits, including 256-byte passwords and 2,000-byte connection notes.
+
+One non-autoloaded database option stores a bounded map of salted peer hashes; expired peer entries are pruned on the next signup attempt. A site-scoped MySQL named lock serializes reservations across workers; lock, read, write, readback, or malformed-state failures deny signup rather than reset its allowance. MySQL/MariaDB named-lock support is required. No pending accounts are automatically deleted.
+
+Each accepted public registration notifies at most **five staff recipients** (at most 150 recipient deliveries/hour or 500/day under the signup budgets). Groups with up to five coordinators keep their normal recipients. Larger rosters notify the configured notification contact first, then coordinators in email-address order up to the limit; all coordinators can still review every pending account in the approval screen. Secure-invite automatic approval sends its usual single account-approval notice instead. Existing manual approval and other member mail are unchanged.
+
+Offline regressions: `php tests/registration-admission-test.php` and `php tests/disabled-group-access-test.php`. Deployment verification should confirm named-lock support and that legitimate registration, shared-network limits, invite approval, and controlled staff mail work with the site's database and mail stack.
+
 Developers can add custom anti-spam fields with the `lworks_registration_antispam_fields` action and reject submissions with the `lworks_registration_antispam_result` filter.
 
 ## Privacy Notes

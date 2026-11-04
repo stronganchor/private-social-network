@@ -759,8 +759,15 @@ class LWorks_Shortcodes {
 	 * @return string
 	 */
 	private static function handle_registration() {
+		if ( ! self::registration_request_is_bounded() ) {
+			return self::notice( __( 'Registration could not be accepted. Please check the form and try again.', 'littleworks-of-mercy' ), 'error' );
+		}
 		if ( ! isset( $_POST['lworks_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['lworks_nonce'] ) ), 'lworks_register' ) ) {
 			return self::notice( __( 'The registration form expired. Please try again.', 'littleworks-of-mercy' ), 'error' );
+		}
+
+		if ( ! LWorks_Registration_Admission::reserve() ) {
+			return self::notice( __( 'Registration is temporarily unavailable. Please try again later.', 'littleworks-of-mercy' ), 'error' );
 		}
 
 		$spam_error = self::validate_registration_antispam();
@@ -856,6 +863,38 @@ class LWorks_Shortcodes {
 		}
 
 		return self::notice( __( 'Your request has been received. A coordinator will review it before you can see the private member area.', 'littleworks-of-mercy' ), 'success' );
+	}
+
+	/**
+	 * Bound raw input before sanitization, CAPTCHA or account/password work.
+	 * Limits are bytes, allowing international names without truncating input.
+	 *
+	 * @return bool
+	 */
+	private static function registration_request_is_bounded() {
+		if ( ! empty( $_FILES ) || count( $_POST ) > 32 || ( isset( $_SERVER['CONTENT_LENGTH'] ) && ( ! is_scalar( $_SERVER['CONTENT_LENGTH'] ) || (int) $_SERVER['CONTENT_LENGTH'] > 32768 ) ) ) {
+			return false;
+		}
+		$limits = array(
+			'lworks_nonce' => 64, 'lworks_action' => 32, 'lworks_started_at' => 20,
+			'lworks_form_token' => 128, 'lworks_website' => 200, 'email' => 254,
+			'first_name' => 200, 'last_name' => 200, 'phone' => 80,
+			'password' => 256, 'password_confirm' => 256, 'group_id' => 20,
+			'invite_token' => 128, 'invite_code' => 64, 'connection_note' => 2000,
+			'h-captcha-response' => 8192, 'g-recaptcha-response' => 8192,
+		);
+		$total = 0;
+		foreach ( $_POST as $key => $value ) {
+			if ( ! is_string( $key ) || ! is_string( $value ) || strlen( $key ) > 128 ) {
+				return false;
+			}
+			$length = strlen( $value );
+			$total += strlen( $key ) + $length;
+			if ( $total > 32768 || $length > ( isset( $limits[ $key ] ) ? $limits[ $key ] : 8192 ) ) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	/**
@@ -1634,6 +1673,18 @@ class LWorks_Shortcodes {
 
 		if ( empty( $recipients ) && is_email( $settings['notification_email'] ) ) {
 			$recipients[] = $settings['notification_email'];
+		}
+		// Admission caps public calls; cap each call's recipient work as well.
+		// Preserve normal coordinator delivery. For large rosters, retain the
+		// configured site contact first, then a deterministic coordinator subset.
+		$recipients = array_values( array_unique( array_map( 'strtolower', $recipients ) ) );
+		sort( $recipients, SORT_STRING );
+		if ( count( $recipients ) > 5 ) {
+			$contact = is_email( $settings['notification_email'] ) ? strtolower( $settings['notification_email'] ) : '';
+			if ( $contact ) {
+				$recipients = array_values( array_unique( array_merge( array( $contact ), $recipients ) ) );
+			}
+			$recipients = array_slice( $recipients, 0, 5 );
 		}
 
 		if ( empty( $recipients ) || ! $user ) {
